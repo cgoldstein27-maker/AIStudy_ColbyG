@@ -11,6 +11,12 @@ const puzzles = {
       { name: 'Planets', words: ['Mercury', 'Venus', 'Earth', 'Mars'] },
       { name: 'Shapes', words: ['Circle', 'Square', 'Triangle', 'Rectangle'] },
       { name: 'Months', words: ['January', 'February', 'March', 'April'] }
+    ],
+    [
+      { name: 'Vegetables', words: ['Carrot', 'Broccoli', 'Spinach', 'Potato'] },
+      { name: 'Sports', words: ['Soccer', 'Basketball', 'Tennis', 'Baseball'] },
+      { name: 'Instruments', words: ['Piano', 'Guitar', 'Drums', 'Violin'] },
+      { name: 'Seasons', words: ['Spring', 'Summer', 'Fall', 'Winter'] }
     ]
   ],
   medium: [
@@ -25,6 +31,12 @@ const puzzles = {
       { name: 'Elements in the Periodic Table', words: ['Iron', 'Gold', 'Silver', 'Copper'] },
       { name: 'Harry Potter Books', words: ['Philosopher\'s Stone', 'Chamber of Secrets', 'Prisoner of Azkaban', 'Goblet of Fire'] },
       { name: 'Types of Pasta', words: ['Spaghetti', 'Penne', 'Fusilli', 'Rigatoni'] }
+    ],
+    [
+      { name: 'Words that Start with "Qu"', words: ['Queen', 'Quiet', 'Quick', 'Quilt'] },
+      { name: 'Types of Clouds', words: ['Cumulus', 'Stratus', 'Cirrus', 'Nimbus'] },
+      { name: 'Famous Inventors', words: ['Edison', 'Tesla', 'Wright', 'Bell'] },
+      { name: 'Words Ending with "ology"', words: ['Biology', 'Psychology', 'Archaeology', 'Sociology'] }
     ]
   ],
   impossible: [
@@ -39,6 +51,12 @@ const puzzles = {
       { name: 'Words that are Pronounced Differently When Capitalized', words: ['Polish', 'Herb', 'Bass', 'Lead'] },
       { name: 'Things that are Illegal in Some Places', words: ['Chewing Gum', 'Driving on the Left', 'Owning a Pet Rock', 'Wearing Crocs'] },
       { name: 'Words that Mean the Opposite in Different Contexts', words: ['Oversight', 'Buckle', 'Trim', 'Bolt'] }
+    ],
+    [
+      { name: 'Words that are Their Own Opposites', words: ['Oversight', 'Buckle', 'Trim', 'Bolt'] },
+      { name: 'Fictional Elements from Periodic Tables', words: ['Vibranium', 'Kryptonite', 'Adamantium', 'Unobtainium'] },
+      { name: 'Words that are Also Programming Languages', words: ['Python', 'Ruby', 'Java', 'Perl'] },
+      { name: 'Things that are Named After People', words: ['Sandwich', 'Watt', 'Pasteur', 'Voltaire'] }
     ]
   ]
 };
