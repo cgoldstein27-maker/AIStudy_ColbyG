@@ -1,27 +1,111 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Colby's Connections</title>
-    <link rel="stylesheet" href="src/style.css">
-  </head>
-  <body>
-    <div id="start-screen">
-      <h1>Colby's Connections</h1>
-      <p>Select Difficulty:</p>
-      <button id="easy">Easy</button>
-      <button id="medium">Medium</button>
-      <button id="impossible">Impossible</button>
-    </div>
-    <div id="app" style="display: none;">
-      <div>
-        <h1>Colby's Connections</h1>
-        <div id="game-board"></div>
-        <button id="submit">Submit</button>
-        <div id="message"></div>
-      </div>
-    </div>
-    <script src="src/main.js"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NHL Top 5 Scoring Leaders</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0e2f44;
+      color: #f1f2f3;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      width: min(95vw, 600px);
+      background: #123b5c;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    h1 {
+      margin: 0 0 16px;
+      font-size: 1.6rem;
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 8px;
+    }
+    th {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #9fc8eb;
+      border-bottom: 1px solid #2d5979;
+    }
+    tr:nth-child(odd) { background: rgba(255,255,255,0.04); }
+    .refresh {
+      margin-top: 14px;
+      display: block;
+      width: 100%;
+      padding: 10px;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #1b6baf;
+      color: white;
+      font-weight: 700;
+    }
+    .refresh:hover { background: #2683ff; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>NHL Top 5 Points Leaders</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Player</th>
+          <th>Team</th>
+          <th>GP</th>
+          <th>G</th>
+          <th>A</th>
+          <th>P</th>
+        </tr>
+      </thead>
+      <tbody id="leaders"></tbody>
+    </table>
+    <button class="refresh" onclick="loadLeaders()">Load/Refresh</button>
+  </div>
+
+  <script>
+    const sampleLeaders = [
+      {rank:1, name:"Connor McDavid", team:"EDM", gp:79, g:64, a:102, p:166},
+      {rank:2, name:"Leon Draisaitl", team:"EDM", gp:78, g:55, a:81, p:136},
+      {rank:3, name:"Nathan MacKinnon", team:"COL", gp:75, g:42, a:78, p:120},
+      {rank:4, name:"Auston Matthews", team:"TOR", gp:82, g:69, a:42, p:111},
+      {rank:5, name:"Mikko Rantanen", team:"COL", gp:80, g:46, a:58, p:104}
+    ];
+
+    function loadLeaders() {
+      const tbody = document.getElementById('leaders');
+      tbody.innerHTML = '';
+      for (const player of sampleLeaders) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${player.rank}</td>
+          <td>${player.name}</td>
+          <td>${player.team}</td>
+          <td>${player.gp}</td>
+          <td>${player.g}</td>
+          <td>${player.a}</td>
+          <td>${player.p}</td>
+        `;
+        tbody.appendChild(row);
+      }
+    }
+
+    loadLeaders();
+  </script>
+</body>
 </html>
