@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study Smart — Notes, SRS & Quiz</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Shell: header (tabs) + main (one visible .panel per tab) + footer. Scripts at bottom load PDF.js then study-smart-bundle.js for file://. -->
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">◆</span>
+        <div>
+          <h1>Study Smart</h1>
+          <p class="tagline">Upload notes · Summaries · Flashcards · Spaced repetition</p>
+        </div>
+      </div>
+      <nav class="tabs" role="tablist" aria-label="Main">
+        <button type="button" class="tab active" data-tab="library" role="tab" aria-selected="true">Library</button>
+        <button type="button" class="tab" data-tab="study" role="tab">Study (SRS)</button>
+        <button type="button" class="tab" data-tab="quiz" role="tab">Quiz</button>
+        <button type="button" class="tab" data-tab="insights" role="tab">Weak topics</button>
+        <button type="button" class="tab" data-tab="chat" role="tab">Ask notes</button>
+      </nav>
+    </header>
+
+    <main class="main">
+      <!-- Library -->
+      <section id="panel-library" class="panel active" role="tabpanel">
+        <div class="grid-2">
+          <div class="card">
+            <h2>Add material</h2>
+            <p class="hint">Paste text or upload <code>.txt</code>. PDF uses your browser (text layers only). You can open this app by double‑clicking <code>index.html</code> as long as the <code>css</code> and <code>js</code> folders stay next to it.</p>
+            <label class="field">
+              <span>Title</span>
+              <input type="text" id="doc-title" placeholder="e.g. Biology — Cell division" />
+            </label>
+            <label class="field">
+              <span>Notes or textbook excerpt</span>
+              <textarea id="doc-content" rows="12" placeholder="Paste notes here…"></textarea>
+            </label>
+            <div class="row">
+              <label class="btn-file">
+                Upload file
+                <input type="file" id="doc-file" accept=".txt,text/plain,application/pdf" hidden />
+              </label>
+              <button type="button" class="btn primary" id="btn-save-doc">Save &amp; process</button>
+            </div>
+            <p id="upload-status" class="status" role="status"></p>
+          </div>
+          <div class="card">
+            <h2>Your sets</h2>
+            <ul id="doc-list" class="doc-list"></ul>
+            <p id="doc-empty" class="empty">No notes yet. Add content on the left.</p>
+          </div>
+        </div>
+        <div class="card full mt" id="active-doc-card" hidden>
+          <div class="active-doc-head">
+            <h2 id="active-doc-title">—</h2>
+            <div class="row">
+              <button type="button" class="btn" id="btn-delete-doc">Delete set</button>
+              <button type="button" class="btn primary" id="btn-regenerate">Regenerate summary &amp; cards</button>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div>
+              <h3>Summary</h3>
+              <div id="active-summary" class="prose"></div>
+            </div>
+            <div>
+              <h3>Flashcards preview</h3>
+              <ul id="active-cards-preview" class="cards-preview"></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SRS -->
+      <section id="panel-study" class="panel" role="tabpanel" hidden>
+        <div class="card">
+          <h2>Spaced repetition</h2>
+          <p class="hint">Rate how well you recalled each card. The schedule uses the SM-2 algorithm (like Anki).</p>
+          <div id="srs-empty" class="empty">No cards due. Add notes in Library or check back later.</div>
+          <div id="srs-session" hidden>
+            <p class="meta" id="srs-progress"></p>
+            <div class="flashcard" id="srs-card">
+              <p class="fc-q" id="srs-q"></p>
+              <button type="button" class="btn" id="srs-reveal">Show answer</button>
+              <p class="fc-a" id="srs-a" hidden></p>
+              <div class="srs-rates" id="srs-rates" hidden>
+                <span class="label">How well did you know it?</span>
+                <div class="rate-btns">
+                  <button type="button" class="btn danger" data-quality="1">Again</button>
+                  <button type="button" class="btn warn" data-quality="3">Hard</button>
+                  <button type="button" class="btn" data-quality="4">Good</button>
+                  <button type="button" class="btn success" data-quality="5">Easy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quiz -->
+      <section id="panel-quiz" class="panel" role="tabpanel" hidden>
+        <div class="card">
+          <h2>Quiz</h2>
+          <p class="hint">Multiple choice built from your flashcards. Wrong answers feed weak-topic stats.</p>
+          <label class="field narrow">
+            <span>Set</span>
+            <select id="quiz-doc-select"></select>
+          </label>
+          <button type="button" class="btn primary" id="btn-start-quiz">Start quiz</button>
+          <div id="quiz-area" class="quiz-area" hidden>
+            <p class="meta" id="quiz-progress"></p>
+            <p class="quiz-q" id="quiz-question"></p>
+            <div id="quiz-options" class="quiz-options"></div>
+            <p id="quiz-feedback" class="feedback" role="status"></p>
+            <button type="button" class="btn" id="quiz-next" hidden>Next</button>
+          </div>
+          <p id="quiz-empty" class="empty">Select a set with flashcards first.</p>
+        </div>
+      </section>
+
+      <!-- Weak topics -->
+      <section id="panel-insights" class="panel" role="tabpanel" hidden>
+        <div class="card">
+          <h2>Weak topics over time</h2>
+          <p class="hint">Topics are inferred from the first line of each note chunk. Missed quiz questions and “Again” in SRS increase weakness.</p>
+          <div id="weak-list" class="weak-list"></div>
+          <p id="weak-empty" class="empty">No data yet — complete quizzes or SRS reviews.</p>
+        </div>
+      </section>
+
+      <!-- Chat -->
+      <section id="panel-chat" class="panel" role="tabpanel" hidden>
+        <div class="grid-2 chat-grid">
+          <div class="card">
+            <h2>Ask about your notes</h2>
+            <p class="hint">Ask questions any time. If you have notes selected it will use them; if you have no notes yet, it can generate a fresh notes set for the topic you ask about.</p>
+            <label class="field narrow">
+              <span>Source set (optional)</span>
+              <select id="chat-doc-select"></select>
+            </label>
+            <label class="field">
+              <span>OpenAI API key (optional, stored only in this browser)</span>
+              <input type="password" id="openai-key" placeholder="sk-…" autocomplete="off" />
+            </label>
+            <label class="field">
+              <span>Message</span>
+              <textarea id="chat-input" rows="3" placeholder="What is photosynthesis according to my notes?"></textarea>
+            </label>
+            <button type="button" class="btn primary" id="btn-chat-send">Send</button>
+            <p id="chat-status" class="status"></p>
+          </div>
+          <div class="card chat-log-card">
+            <h2>Conversation</h2>
+            <div id="chat-log" class="chat-log"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Data stays in your browser (localStorage). No account required.</span>
+    </footer>
+  </div>
+
+  <!--
+    PDF: legacy build exposes pdfjsLib globally so the bundle can read PDFs when opened as file://.
+    App logic lives in study-smart-bundle.js (no ES modules). For development with a server you can
+    swap the last script for: <script type="module" src="js/app.js"></script>
+  -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (typeof pdfjsLib !== "undefined") {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
+  </script>
+  <script defer src="js/study-smart-bundle.js"></script>
+</body>
+</html>
