@@ -291,6 +291,11 @@
         0 0 16px rgba(255, 43, 214, 0.45),
         0 0 28px rgba(0, 234, 255, 0.35);
     }
+
+    canvas#game:focus {
+      outline: 2px solid rgba(0, 234, 255, 0.55);
+      outline-offset: 3px;
+    }
   </style>
 </head>
 <body>
@@ -334,7 +339,7 @@
         </div>
       </div>
       <div class="game-area">
-        <canvas id="game" width="960" height="540"></canvas>
+        <canvas id="game" width="960" height="540" tabindex="0" role="application" aria-label="Air hockey rink — click here if keys do not move your paddle"></canvas>
         <div id="gameOverModal" class="game-over-modal hidden">
           <div class="game-over-inner">
             <h2 id="winnerTitle">Winner</h2>
@@ -776,13 +781,35 @@
       drawGlowCircle(puck.x, puck.y, puck.r * 0.45, "#f2ffd9", 8);
     }
 
+    function focusGameInput() {
+      if (state.screen !== "playing") return;
+      try {
+        canvas.focus({ preventScroll: true });
+      } catch (e) {
+        canvas.focus();
+      }
+    }
+
+    function isFormOrButtonFocused() {
+      const el = document.activeElement;
+      if (!el || el === document.body) return false;
+      const tag = el.tagName;
+      return (
+        tag === "BUTTON" ||
+        tag === "INPUT" ||
+        tag === "SELECT" ||
+        tag === "TEXTAREA" ||
+        tag === "A"
+      );
+    }
+
     function syncHudLabels() {
       const single = state.mode === "single";
       leftLabel.textContent = single ? "You" : "P1";
       rightLabel.textContent = single ? "AI" : "P2";
       hintText.textContent = single
-        ? "WASD + Space boost • R reset • P pause"
-        : "P1: WASD + Space • P2: arrows + Enter • R reset • P pause";
+        ? "WASD + Space boost • click rink if stuck • R reset • P pause"
+        : "P1 WASD + Space • P2 arrows + Enter • click rink if stuck • R P pause";
     }
 
     function syncHomeUI() {
@@ -832,6 +859,9 @@
       syncHudLabels();
       beginRound();
       ensureAudio();
+      requestAnimationFrame(() => {
+        focusGameInput();
+      });
     }
 
     function goHome() {
@@ -889,78 +919,103 @@
       requestAnimationFrame(tick);
     }
 
-    function setKeyFromCode(code, down) {
-      switch (code) {
-        case "KeyW":
-          keys.w = down;
-          break;
-        case "KeyA":
-          keys.a = down;
-          break;
-        case "KeyS":
-          keys.s = down;
-          break;
-        case "KeyD":
-          keys.d = down;
-          break;
-        case "ArrowUp":
-          keys.up = down;
-          break;
-        case "ArrowDown":
-          keys.down = down;
-          break;
-        case "ArrowLeft":
-          keys.left = down;
-          break;
-        case "ArrowRight":
-          keys.right = down;
-          break;
-        default:
-          break;
+    function applyMovementKey(event, down) {
+      const code = event.code;
+      const key = event.key;
+
+      if (code === "KeyW" || key === "w" || key === "W") {
+        keys.w = down;
+        return true;
       }
+      if (code === "KeyA" || key === "a" || key === "A") {
+        keys.a = down;
+        return true;
+      }
+      if (code === "KeyS" || key === "s" || key === "S") {
+        keys.s = down;
+        return true;
+      }
+      if (code === "KeyD" || key === "d" || key === "D") {
+        keys.d = down;
+        return true;
+      }
+
+      if (state.mode === "multi") {
+        if (code === "ArrowUp" || key === "ArrowUp") {
+          keys.up = down;
+          return true;
+        }
+        if (code === "ArrowDown" || key === "ArrowDown") {
+          keys.down = down;
+          return true;
+        }
+        if (code === "ArrowLeft" || key === "ArrowLeft") {
+          keys.left = down;
+          return true;
+        }
+        if (code === "ArrowRight" || key === "ArrowRight") {
+          keys.right = down;
+          return true;
+        }
+      }
+      return false;
     }
 
-    window.addEventListener("keydown", (event) => {
+    function onKeyDown(event) {
       if (state.screen !== "playing" || state.gameOver) {
         return;
       }
 
-      if (event.code === "Space") {
-        state.boostP1 = true;
+      if (event.repeat && applyMovementKey(event, true)) {
         event.preventDefault();
-        ensureAudio();
+        return;
+      }
+
+      if (event.repeat) {
+        if (event.code === "Space") {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (event.code === "Space") {
+        if (!isFormOrButtonFocused()) {
+          state.boostP1 = true;
+          event.preventDefault();
+          ensureAudio();
+        }
         return;
       }
       if (event.code === "Enter" && state.mode === "multi") {
-        state.boostP2 = true;
-        event.preventDefault();
-        ensureAudio();
-        return;
-      }
-
-      if (event.key.toLowerCase() === "r") {
-        beginRound();
-        return;
-      }
-      if (event.key.toLowerCase() === "p") {
-        setPaused(!state.isPaused);
-        return;
-      }
-
-      if (event.code === "KeyW" || event.code === "KeyA" || event.code === "KeyS" || event.code === "KeyD") {
-        setKeyFromCode(event.code, true);
-        return;
-      }
-
-      if (state.mode === "multi") {
-        setKeyFromCode(event.code, true);
-        if (event.code.startsWith("Arrow")) {
+        if (!isFormOrButtonFocused()) {
+          state.boostP2 = true;
           event.preventDefault();
+          ensureAudio();
         }
+        return;
       }
-    });
 
-    window.addEventListener("keyup", (event) => {
+      if (event.code === "KeyR" || event.key === "r" || event.key === "R") {
+        beginRound();
+        event.preventDefault();
+        return;
+      }
+      if (event.code === "KeyP" || event.key === "p" || event.key === "P") {
+        const nextPaused = !state.isPaused;
+        setPaused(nextPaused);
+        event.preventDefault();
+        if (!nextPaused) {
+          requestAnimationFrame(() => focusGameInput());
+        }
+        return;
+      }
+
+      if (applyMovementKey(event, true)) {
+        event.preventDefault();
+      }
+    }
+
+    function onKeyUp(event) {
       if (state.screen !== "playing") {
         return;
       }
@@ -976,17 +1031,18 @@
         return;
       }
 
-      if (event.code === "KeyW" || event.code === "KeyA" || event.code === "KeyS" || event.code === "KeyD") {
-        setKeyFromCode(event.code, false);
-        return;
-      }
-
-      if (state.mode === "multi") {
-        setKeyFromCode(event.code, false);
-        if (event.code.startsWith("Arrow")) {
+      if (applyMovementKey(event, false)) {
+        if (event.code.startsWith("Arrow") && state.mode === "multi") {
           event.preventDefault();
         }
       }
+    }
+
+    document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("keyup", onKeyUp, true);
+
+    canvas.addEventListener("pointerdown", () => {
+      focusGameInput();
     });
 
     window.addEventListener("blur", () => {
@@ -1000,6 +1056,9 @@
       if (state.screen !== "playing" || state.gameOver) return;
       setPaused(!state.isPaused);
       ensureAudio();
+      if (!state.isPaused) {
+        requestAnimationFrame(() => focusGameInput());
+      }
     });
 
     btnHudHome.addEventListener("click", () => {
@@ -1029,6 +1088,7 @@
 
     btnPlayAgain.addEventListener("click", () => {
       beginRound();
+      requestAnimationFrame(() => focusGameInput());
     });
 
     btnModalHome.addEventListener("click", () => {
