@@ -152,3 +152,148 @@ export async function generateNotesForTopic(topic, apiKey) {
     return `Network error while generating notes. Here is a generic outline for ${safeTopic}:\n\n- Definition and key idea\n- Why it matters\n- Main concepts and examples\n- Common mistakes\n- Summary bullets.`;
   }
 }
+
+function parseJsonFromModelContent(raw) {
+  let t = (raw || "").trim();
+  if (t.startsWith("```")) {
+    t = t.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
+  }
+  return JSON.parse(t);
+}
+
+/**
+ * Rewrite rough notes into clearer, higher-quality study notes (OpenAI required).
+ * Stays grounded in the supplied text; flags uncertain claims with [verify].
+ */
+export async function refineNotesWithAI(rawNotes, title, apiKey) {
+  if (!apiKey || !apiKey.startsWith("sk-")) {
+    return { ok: false, error: "Add an OpenAI API key in the Chat tab to refine notes." };
+  }
+  const trimmed = (rawNotes || "").trim().slice(0, 28000);
+  if (!trimmed) return { ok: false, error: "No note text to refine." };
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an academic study coach. Rewrite the student's notes into polished study notes: clear headings, precise definitions, numbered steps where useful, and short examples. Expand only with widely standard educational explanations that are consistent with the student's text. Do not invent specific facts, dates, or citations not implied by the notes; if something is unclear, write [verify] instead of guessing. Tone: formal but readable for high school. No meta commentary.",
+          },
+          {
+            role: "user",
+            content: `Document title (context): ${title || "Untitled"}\n\nORIGINAL NOTES:\n${trimmed}\n\nProduce refined notes with sections: Overview, Key terms, Core ideas, Examples / applications, Common confusions, Short review checklist (bullets).`,
+          },
+        ],
+        max_tokens: 3500,
+        temperature: 0.35,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      return { ok: false, error: `API error (${res.status}): ${err.slice(0, 180)}` };
+    }
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content?.trim();
+    if (!text) return { ok: false, error: "Empty response from API." };
+    return { ok: true, text };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+
+/**
+ * Build harder multiple-choice questions using student notes + optional Wikipedia extract.
+ * Returns items compatible with the existing quiz UI: { question, options: [{text, correct}], topicKey }.
+ */
+export async function generateAdvancedQuiz(notesContent, docTitle, webExtract, webSourceLabel, apiKey) {
+  if (!apiKey || !apiKey.startsWith("sk-")) {
+    return { ok: false, error: "Add an OpenAI API key to generate an advanced quiz." };
+  }
+  const notes = (notesContent || "").trim().slice(0, 14000);
+  const web = (webExtract || "").trim().slice(0, 12000);
+  const label = webSourceLabel || "Wikipedia";
+
+  const userBlock =
+    `STUDENT_NOTES:\n${notes}\n\n` +
+    (web
+      ? `REFERENCE (${label}, for extra context—prefer aligning with student notes when they conflict):\n${web}\n\n`
+      : "No web reference was retrieved; base questions on STUDENT_NOTES only.\n\n") +
+    `Return ONLY valid JSON (no markdown fences) with this shape:\n` +
+    `{"questions":[` +
+    `{"question":"string","options":["A","B","C","D"],"correctIndex":0,"topicKey":"short-topic-slug"}` +
+    `]}\n` +
+    `Rules: 6 to 8 questions. Four options each. correctIndex 0-3. Questions should be harder than simple recall: application, comparison, "which is FALSE", cause/effect, edge cases. Distractors must be plausible. topicKey should be a short lowercase slug (e.g. "photosynthesis-light-reactions").`;
+
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You write challenging multiple-choice questions for students. Output must be strictly valid JSON only. Never include commentary outside JSON.",
+          },
+          { role: "user", content: userBlock },
+        ],
+        max_tokens: 2800,
+        temperature: 0.45,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      return { ok: false, error: `API error (${res.status}): ${err.slice(0, 180)}` };
+    }
+    const data = await res.json();
+    const raw = data.choices?.[0]?.message?.content?.trim();
+    if (!raw) return { ok: false, error: "Empty quiz response." };
+
+    let parsed;
+    try {
+      parsed = parseJsonFromModelContent(raw);
+    } catch {
+      return { ok: false, error: "Could not parse quiz JSON. Try again." };
+    }
+
+    const qs = parsed.questions;
+    if (!Array.isArray(qs) || qs.length === 0) {
+      return { ok: false, error: "Quiz response had no questions." };
+    }
+
+    const items = qs.map((q) => {
+      const opts = Array.isArray(q.options) ? q.options.slice(0, 4) : [];
+      while (opts.length < 4) opts.push("(option)");
+      const idx = Math.min(3, Math.max(0, Number(q.correctIndex) || 0));
+      const topicKey = typeof q.topicKey === "string" && q.topicKey ? q.topicKey : "advanced-quiz";
+      const tagged = opts.map((text, i) => ({
+        text: String(text),
+        correct: i === idx,
+      }));
+      const shuffled = tagged.sort(() => Math.random() - 0.5);
+      return {
+        question: String(q.question || "Question"),
+        options: shuffled.map(({ text, correct }) => ({ text, correct })),
+        topicKey,
+      };
+    });
+
+    return { ok: true, items };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}

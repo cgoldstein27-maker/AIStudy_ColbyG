@@ -11,7 +11,13 @@ import { loadState, saveState, newId, defaultState } from "./storage.js";
 import { buildStudyMaterial, summarize, buildQuiz } from "./study-engine.js";
 import { scheduleReview, defaultSrsMeta, isDue } from "./srs.js";
 import { recordWeak, weakTopicList } from "./weak-topics.js";
-import { answerQuestion, generateNotesForTopic } from "./chat.js";
+import {
+  answerQuestion,
+  generateNotesForTopic,
+  refineNotesWithAI,
+  generateAdvancedQuiz,
+} from "./chat.js";
+import { fetchWikipediaContext } from "./web-research.js";
 
 /** localStorage key for the optional OpenAI API key (never sent except to OpenAI by chat.js). */
 const OPENAI_STORAGE = "study-smart-openai-key";
@@ -66,6 +72,7 @@ function renderDocList() {
       persist();
       renderDocList();
       renderActiveDoc();
+      refreshSelectors();
     });
     ul.appendChild(li);
   }
@@ -193,12 +200,20 @@ function renderSrsCard() {
   empty.hidden = true;
   session.hidden = false;
   const item = srsQueue[srsIndex];
+  const card = $("#srs-card");
   $("#srs-progress").textContent = `Card ${srsIndex + 1} of ${srsQueue.length}`;
   $("#srs-q").textContent = item.card.q;
-  $("#srs-a").textContent = item.card.a;
-  $("#srs-a").hidden = true;
+  const ans = $("#srs-a");
+  ans.textContent = item.card.a;
+  ans.classList.add("srs-concealed");
+  const aLabel = $("#srs-a-label");
+  if (aLabel) aLabel.classList.add("srs-concealed");
   $("#srs-reveal").hidden = false;
-  $("#srs-rates").hidden = true;
+  $("#srs-rates").setAttribute("hidden", "");
+  if (card) {
+    card.classList.add("srs-pending");
+    card.setAttribute("tabindex", "0");
+  }
   srsRevealed = false;
 }
 
@@ -209,10 +224,19 @@ function startSrsSession() {
 }
 
 function revealSrs() {
+  const a = $("#srs-a");
+  if (!a || !a.classList.contains("srs-concealed")) return;
   srsRevealed = true;
-  $("#srs-a").hidden = false;
+  const card = $("#srs-card");
+  if (card) {
+    card.classList.remove("srs-pending");
+    card.setAttribute("tabindex", "-1");
+  }
+  a.classList.remove("srs-concealed");
+  const lbl = $("#srs-a-label");
+  if (lbl) lbl.classList.remove("srs-concealed");
   $("#srs-reveal").hidden = true;
-  $("#srs-rates").hidden = false;
+  $("#srs-rates").removeAttribute("hidden");
 }
 
 /** Map button quality to SM-2 update and weak-topic stats, then advance the queue. */
@@ -250,6 +274,7 @@ let quizLocked = false;
 function refreshSelectors() {
   const qSel = $("#quiz-doc-select");
   const cSel = $("#chat-doc-select");
+  if (!qSel || !cSel) return;
   qSel.innerHTML = "";
   cSel.innerHTML = "";
   for (const d of state.docs) {
@@ -266,16 +291,24 @@ function refreshSelectors() {
     qSel.value = state.activeDocId;
     cSel.value = state.activeDocId;
   }
+  renderQuizEmpty();
 }
 
 function renderQuizEmpty() {
+  const qSel = $("#quiz-doc-select");
+  if (!qSel) return;
   const area = $("#quiz-area");
   const empty = $("#quiz-empty");
-  const docId = $("#quiz-doc-select").value;
+  const docId = qSel.value;
   const doc = docId ? getDoc(docId) : null;
-  const has = doc && (doc.flashcards || []).length > 0;
-  empty.hidden = has;
-  area.hidden = !has && area.hidden;
+  const hasFlash = doc && (doc.flashcards || []).length > 0;
+  const hasContent = doc && (doc.content || "").trim().length >= 40;
+  empty.hidden = hasFlash || hasContent;
+  area.hidden = true;
+  const std = $("#btn-start-quiz");
+  const adv = $("#btn-start-quiz-advanced");
+  if (std) std.disabled = !hasFlash;
+  if (adv) adv.disabled = !hasContent;
 }
 
 function startQuiz() {
@@ -285,11 +318,51 @@ function startQuiz() {
     $("#quiz-empty").hidden = false;
     return;
   }
+  $("#quiz-feedback").textContent = "";
   quizItems = buildQuiz(doc.flashcards);
   quizIdx = 0;
   quizLocked = false;
   $("#quiz-area").hidden = false;
   $("#quiz-empty").hidden = true;
+  renderQuizQuestion();
+}
+
+/** Harder MC quiz: OpenAI + optional Wikipedia extract (see web-research.js). */
+async function startAdvancedQuiz() {
+  const docId = $("#quiz-doc-select").value;
+  const doc = getDoc(docId);
+  const fb = $("#quiz-feedback");
+  if (!doc || !(doc.content || "").trim()) {
+    $("#quiz-empty").hidden = false;
+    return;
+  }
+  const apiKey = $("#openai-key").value.trim() || localStorage.getItem(OPENAI_STORAGE) || "";
+  if (!apiKey.startsWith("sk-")) {
+    fb.textContent = "Advanced quiz requires an OpenAI API key. Add it under Ask notes, then try again.";
+    fb.hidden = false;
+    return;
+  }
+  fb.hidden = false;
+  fb.textContent = "Looking up reference material on Wikipedia…";
+  const topicHint = (doc.title || "").trim() || (doc.content || "").split("\n")[0].trim().slice(0, 100);
+  const wiki = await fetchWikipediaContext(topicHint);
+  const webExtract = wiki?.extract || "";
+  const webLabel = wiki ? `Wikipedia (“${wiki.title}”)` : "";
+  fb.textContent = wiki
+    ? `Building advanced quiz from your notes + ${webLabel}…`
+    : "No Wikipedia article matched; building advanced quiz from your notes only…";
+
+  const result = await generateAdvancedQuiz(doc.content, doc.title, webExtract, webLabel, apiKey);
+  if (!result.ok) {
+    fb.textContent = result.error;
+    return;
+  }
+  quizItems = result.items;
+  quizIdx = 0;
+  quizLocked = false;
+  $("#quiz-area").hidden = false;
+  $("#quiz-empty").hidden = true;
+  fb.textContent = "";
   renderQuizQuestion();
 }
 
@@ -316,10 +389,12 @@ function onQuizPick(btn, item, opt) {
   if (quizLocked) return;
   quizLocked = true;
   const buttons = $("#quiz-options").querySelectorAll("button");
+  // Freeze the question after one attempt and reveal which option is correct.
   buttons.forEach((b) => {
     b.disabled = true;
     if (b.dataset.correct === "1") b.classList.add("correct");
   });
+  // Feed weak-topic stats so Insights reflects real mistakes over time.
   if (!opt.correct) {
     btn.classList.add("wrong");
     recordWeak(state, item.topicKey, null, 1, 0);
@@ -393,10 +468,7 @@ function bindUi() {
       const name = t.dataset.tab;
       setTab(name);
       if (name === "study") startSrsSession();
-      if (name === "quiz") {
-        refreshSelectors();
-        renderQuizEmpty();
-      }
+      if (name === "quiz") refreshSelectors();
       if (name === "insights") renderWeakTopics();
       if (name === "chat") {
         refreshSelectors();
@@ -447,18 +519,65 @@ function bindUi() {
     persist();
     renderDocList();
     renderActiveDoc();
+    refreshSelectors();
     renderWeakTopics();
     $("#upload-status").textContent = "Regenerated summary and cards.";
   });
 
-  $("#srs-reveal").addEventListener("click", revealSrs);
+  $("#btn-refine-notes").addEventListener("click", async () => {
+    const doc = state.activeDocId ? getDoc(state.activeDocId) : null;
+    const status = $("#refine-status");
+    if (!doc) return;
+    const apiKey = $("#openai-key").value.trim() || localStorage.getItem(OPENAI_STORAGE) || "";
+    status.textContent = "Refining notes…";
+    const result = await refineNotesWithAI(doc.content, doc.title, apiKey);
+    if (!result.ok) {
+      status.textContent = result.error;
+      return;
+    }
+    for (const fc of doc.flashcards || []) delete state.srs[fc.id];
+    doc.content = result.text.trim();
+    const { chunks, flashcards } = buildStudyMaterial(doc.content, doc.id);
+    doc.chunks = chunks;
+    doc.flashcards = flashcards;
+    doc.summary = summarize(doc.content, 6);
+    for (const fc of flashcards) {
+      state.srs[fc.id] = { ...defaultSrsMeta(), nextReview: 0 };
+    }
+    persist();
+    renderDocList();
+    renderActiveDoc();
+    refreshSelectors();
+    renderWeakTopics();
+    status.textContent = "Notes refined. Summary and flashcards were rebuilt from the improved text.";
+  });
+
+  $("#srs-reveal").addEventListener("click", (e) => {
+    e.stopPropagation();
+    revealSrs();
+  });
+  $("#srs-card").addEventListener("click", (e) => {
+    if (e.target.closest("[data-quality]")) return;
+    revealSrs();
+  });
+  $("#srs-card").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    if (!$("#srs-card").classList.contains("srs-pending")) return;
+    e.preventDefault();
+    revealSrs();
+  });
   $("#srs-rates").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-quality]");
     if (!btn) return;
     rateSrs(Number(btn.dataset.quality));
   });
 
+  $("#quiz-doc-select").addEventListener("change", () => renderQuizEmpty());
+
   $("#btn-start-quiz").addEventListener("click", startQuiz);
+  $("#btn-start-quiz-advanced").addEventListener("click", () => {
+    startAdvancedQuiz();
+  });
   $("#quiz-next").addEventListener("click", quizNext);
 
   $("#openai-key").addEventListener("change", () => {
@@ -480,11 +599,13 @@ function bindUi() {
     const apiKey = $("#openai-key").value.trim() || localStorage.getItem(OPENAI_STORAGE) || "";
 
     // Prefer chat dropdown, then whichever set is active in the Library.
+    // This keeps chat usable even if users forget to pick a source set.
     let docId = $("#chat-doc-select").value;
     if (!docId && state.activeDocId) docId = state.activeDocId;
     const doc = docId ? getDoc(docId) : null;
 
     // Ground answers in an existing saved set when we have one.
+    // `answerQuestion` can still use OpenAI, but only with these chunks as context.
     if (doc) {
       const chunks =
         doc.chunks?.length > 0 ? doc.chunks : buildStudyMaterial(doc.content, doc.id).chunks;
@@ -498,6 +619,7 @@ function bindUi() {
     }
 
     // No sets yet: generate note text from the user message, save it, then answer from that material.
+    // This is the "just ask for a topic" onboarding path.
     status.textContent = "No notes yet — creating a new notes set for this topic…";
     const notes = await generateNotesForTopic(q, apiKey);
     const shortTitle = q.length > 60 ? `${q.slice(0, 57)}…` : q;
@@ -525,7 +647,6 @@ function boot() {
   renderActiveDoc();
   refreshSelectors();
   renderWeakTopics();
-  renderQuizEmpty();
   setTab("library");
 }
 

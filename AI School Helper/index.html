@@ -6,7 +6,7 @@
   <title>Study Smart — Notes, SRS & Quiz</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -14,10 +14,10 @@
   <div class="app">
     <header class="header">
       <div class="brand">
-        <span class="logo" aria-hidden="true">◆</span>
+        <span class="logo" aria-hidden="true"></span>
         <div>
           <h1>Study Smart</h1>
-          <p class="tagline">Upload notes · Summaries · Flashcards · Spaced repetition</p>
+          <p class="tagline">Note library, summaries, flashcards, and spaced repetition</p>
         </div>
       </div>
       <nav class="tabs" role="tablist" aria-label="Main">
@@ -65,7 +65,9 @@
             <div class="row">
               <button type="button" class="btn" id="btn-delete-doc">Delete set</button>
               <button type="button" class="btn primary" id="btn-regenerate">Regenerate summary &amp; cards</button>
+              <button type="button" class="btn primary" id="btn-refine-notes">Refine notes with AI</button>
             </div>
+            <p id="refine-status" class="status" role="status"></p>
           </div>
           <div class="grid-2">
             <div>
@@ -84,14 +86,15 @@
       <section id="panel-study" class="panel" role="tabpanel" hidden>
         <div class="card">
           <h2>Spaced repetition</h2>
-          <p class="hint">Rate how well you recalled each card. The schedule uses the SM-2 algorithm (like Anki).</p>
+          <p class="hint">Tap the card or the button to reveal the answer, then rate how well you knew it (SM-2 scheduling).</p>
           <div id="srs-empty" class="empty">No cards due. Add notes in Library or check back later.</div>
           <div id="srs-session" hidden>
             <p class="meta" id="srs-progress"></p>
-            <div class="flashcard" id="srs-card">
+            <div class="flashcard srs-pending" id="srs-card" tabindex="0" role="region" aria-label="Flashcard. Press Enter or click to reveal the answer.">
               <p class="fc-q" id="srs-q"></p>
               <button type="button" class="btn" id="srs-reveal">Show answer</button>
-              <p class="fc-a" id="srs-a" hidden></p>
+              <p class="fc-a-label srs-concealed" id="srs-a-label">Answer</p>
+              <p class="fc-a srs-concealed" id="srs-a"></p>
               <div class="srs-rates" id="srs-rates" hidden>
                 <span class="label">How well did you know it?</span>
                 <div class="rate-btns">
@@ -110,12 +113,15 @@
       <section id="panel-quiz" class="panel" role="tabpanel" hidden>
         <div class="card">
           <h2>Quiz</h2>
-          <p class="hint">Multiple choice built from your flashcards. Wrong answers feed weak-topic stats.</p>
+          <p class="hint">Standard quiz uses your flashcards. Advanced quiz uses OpenAI plus a Wikipedia reference when a matching article exists (network required).</p>
           <label class="field narrow">
             <span>Set</span>
             <select id="quiz-doc-select"></select>
           </label>
-          <button type="button" class="btn primary" id="btn-start-quiz">Start quiz</button>
+          <div class="row">
+            <button type="button" class="btn primary" id="btn-start-quiz">Standard quiz</button>
+            <button type="button" class="btn primary" id="btn-start-quiz-advanced">Advanced quiz (web + AI)</button>
+          </div>
           <div id="quiz-area" class="quiz-area" hidden>
             <p class="meta" id="quiz-progress"></p>
             <p class="quiz-q" id="quiz-question"></p>
@@ -123,7 +129,7 @@
             <p id="quiz-feedback" class="feedback" role="status"></p>
             <button type="button" class="btn" id="quiz-next" hidden>Next</button>
           </div>
-          <p id="quiz-empty" class="empty">Select a set with flashcards first.</p>
+          <p id="quiz-empty" class="empty">Select a set. Standard quiz needs flashcards; advanced quiz needs note text and an API key under Ask notes.</p>
         </div>
       </section>
 

@@ -503,6 +503,199 @@
       });
   }
 
+  /* ========== WEB + AI (Wikipedia context, note refine, advanced quiz) ========== */
+  function fetchWikipediaContext(query, maxChars) {
+    maxChars = maxChars === undefined ? 12000 : maxChars;
+    var q = (query || "").trim().slice(0, 200);
+    if (!q) return Promise.resolve(null);
+    var searchUrl =
+      "https://en.wikipedia.org/w/api.php?action=opensearch&search=" +
+      encodeURIComponent(q) +
+      "&limit=1&namespace=0&format=json&origin=*";
+    return fetch(searchUrl)
+      .then(function (sRes) {
+        if (!sRes.ok) return null;
+        return sRes.json();
+      })
+      .then(function (sData) {
+        if (!sData || !Array.isArray(sData[1])) return null;
+        var titles = sData[1];
+        if (!titles.length) return null;
+        var title = titles[0];
+        var extractUrl =
+          "https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&exintro=false&explaintext=true&titles=" +
+          encodeURIComponent(title);
+        return fetch(extractUrl).then(function (eRes) {
+          if (!eRes.ok) return null;
+          return eRes.json().then(function (eData) {
+            var pages = eData.query && eData.query.pages;
+            if (!pages) return null;
+            var page = pages[Object.keys(pages)[0]];
+            if (!page || page.missing) return null;
+            var extract = (page.extract || "").replace(/\s+/g, " ").trim();
+            if (maxChars && extract.length > maxChars) extract = extract.slice(0, maxChars) + "…";
+            var url = "https://en.wikipedia.org/wiki/" + encodeURIComponent(title.replace(/ /g, "_"));
+            return { title: title, extract: extract, url: url };
+          });
+        });
+      })
+      .catch(function () {
+        return null;
+      });
+  }
+
+  function parseJsonFromModelContent(raw) {
+    var t = (raw || "").trim();
+    if (t.indexOf("```") === 0) {
+      t = t.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
+    }
+    return JSON.parse(t);
+  }
+
+  function refineNotesWithAI(rawNotes, title, apiKey) {
+    if (!apiKey || apiKey.indexOf("sk-") !== 0) {
+      return Promise.resolve({ ok: false, error: "Add an OpenAI API key in the Chat tab to refine notes." });
+    }
+    var trimmed = (rawNotes || "").trim().slice(0, 28000);
+    if (!trimmed) return Promise.resolve({ ok: false, error: "No note text to refine." });
+    return fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + apiKey,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an academic study coach. Rewrite the student's notes into polished study notes: clear headings, precise definitions, numbered steps where useful, and short examples. Expand only with widely standard educational explanations that are consistent with the student's text. Do not invent specific facts, dates, or citations not implied by the notes; if something is unclear, write [verify] instead of guessing. Tone: formal but readable for high school. No meta commentary.",
+          },
+          {
+            role: "user",
+            content:
+              "Document title (context): " +
+              (title || "Untitled") +
+              "\n\nORIGINAL NOTES:\n" +
+              trimmed +
+              "\n\nProduce refined notes with sections: Overview, Key terms, Core ideas, Examples / applications, Common confusions, Short review checklist (bullets).",
+          },
+        ],
+        max_tokens: 3500,
+        temperature: 0.35,
+      }),
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.text().then(function (err) {
+            return { ok: false, error: "API error (" + res.status + "): " + err.slice(0, 180) };
+          });
+        }
+        return res.json().then(function (data) {
+          var text =
+            data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content
+              ? data.choices[0].message.content.trim()
+              : "";
+          if (!text) return { ok: false, error: "Empty response from API." };
+          return { ok: true, text: text };
+        });
+      })
+      .catch(function (e) {
+        return { ok: false, error: String(e.message || e) };
+      });
+  }
+
+  function generateAdvancedQuiz(notesContent, docTitle, webExtract, webSourceLabel, apiKey) {
+    if (!apiKey || apiKey.indexOf("sk-") !== 0) {
+      return Promise.resolve({ ok: false, error: "Add an OpenAI API key to generate an advanced quiz." });
+    }
+    var notes = (notesContent || "").trim().slice(0, 14000);
+    var web = (webExtract || "").trim().slice(0, 12000);
+    var label = webSourceLabel || "Wikipedia";
+    var userBlock =
+      "STUDENT_NOTES:\n" +
+      notes +
+      "\n\n" +
+      (web
+        ? "REFERENCE (" +
+          label +
+          ", for extra context—prefer aligning with student notes when they conflict):\n" +
+          web +
+          "\n\n"
+        : "No web reference was retrieved; base questions on STUDENT_NOTES only.\n\n") +
+      'Return ONLY valid JSON (no markdown fences) with this shape:\n{"questions":[{"question":"string","options":["A","B","C","D"],"correctIndex":0,"topicKey":"short-topic-slug"}]}\nRules: 6 to 8 questions. Four options each. correctIndex 0-3. Questions should be harder than simple recall: application, comparison, "which is FALSE", cause/effect, edge cases. Distractors must be plausible. topicKey should be a short lowercase slug (e.g. "photosynthesis-light-reactions").';
+
+    return fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + apiKey,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You write challenging multiple-choice questions for students. Output must be strictly valid JSON only. Never include commentary outside JSON.",
+          },
+          { role: "user", content: userBlock },
+        ],
+        max_tokens: 2800,
+        temperature: 0.45,
+      }),
+    })
+      .then(function (res) {
+        if (!res.ok) {
+          return res.text().then(function (err) {
+            return { ok: false, error: "API error (" + res.status + "): " + err.slice(0, 180) };
+          });
+        }
+        return res.json().then(function (data) {
+          var raw =
+            data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content
+              ? data.choices[0].message.content.trim()
+              : "";
+          if (!raw) return { ok: false, error: "Empty quiz response." };
+          var parsed;
+          try {
+            parsed = parseJsonFromModelContent(raw);
+          } catch (e) {
+            return { ok: false, error: "Could not parse quiz JSON. Try again." };
+          }
+          var qs = parsed.questions;
+          if (!Array.isArray(qs) || qs.length === 0) {
+            return { ok: false, error: "Quiz response had no questions." };
+          }
+          var items = qs.map(function (q) {
+            var opts = Array.isArray(q.options) ? q.options.slice(0, 4) : [];
+            while (opts.length < 4) opts.push("(option)");
+            var idx = Math.min(3, Math.max(0, Number(q.correctIndex) || 0));
+            var topicKey =
+              typeof q.topicKey === "string" && q.topicKey ? q.topicKey : "advanced-quiz";
+            var tagged = opts.map(function (text, i) {
+              return { text: String(text), correct: i === idx };
+            });
+            var shuffled = tagged.sort(function () {
+              return Math.random() - 0.5;
+            });
+            return {
+              question: String(q.question || "Question"),
+              options: shuffled.map(function (x) {
+                return { text: x.text, correct: x.correct };
+              }),
+              topicKey: topicKey,
+            };
+          });
+          return { ok: true, items: items };
+        });
+      })
+      .catch(function (e) {
+        return { ok: false, error: String(e.message || e) };
+      });
+  }
+
   /* ========== APP (DOM, tabs, Library, SRS UI, Quiz, Chat wiring) ========== */
   const OPENAI_STORAGE = "study-smart-openai-key";
   let state = loadState();
@@ -562,6 +755,7 @@
             persist();
             renderDocList();
             renderActiveDoc();
+            refreshSelectors();
           };
         })(d.id)
       );
@@ -726,8 +920,8 @@
   }
 
   function renderSrsCard() {
-    const empty = $("#srs-empty");
-    const session = $("#srs-session");
+    var empty = $("#srs-empty");
+    var session = $("#srs-session");
     if (srsQueue.length === 0) {
       empty.hidden = false;
       session.hidden = true;
@@ -735,13 +929,21 @@
     }
     empty.hidden = true;
     session.hidden = false;
-    const item = srsQueue[srsIndex];
+    var item = srsQueue[srsIndex];
+    var card = $("#srs-card");
     $("#srs-progress").textContent = "Card " + (srsIndex + 1) + " of " + srsQueue.length;
     $("#srs-q").textContent = item.card.q;
-    $("#srs-a").textContent = item.card.a;
-    $("#srs-a").hidden = true;
+    var ans = $("#srs-a");
+    ans.textContent = item.card.a;
+    ans.classList.add("srs-concealed");
+    var aLabel = $("#srs-a-label");
+    if (aLabel) aLabel.classList.add("srs-concealed");
     $("#srs-reveal").hidden = false;
-    $("#srs-rates").hidden = true;
+    $("#srs-rates").setAttribute("hidden", "");
+    if (card) {
+      card.classList.add("srs-pending");
+      card.setAttribute("tabindex", "0");
+    }
   }
 
   function startSrsSession() {
@@ -751,9 +953,18 @@
   }
 
   function revealSrs() {
-    $("#srs-a").hidden = false;
+    var a = $("#srs-a");
+    if (!a || !a.classList.contains("srs-concealed")) return;
+    var card = $("#srs-card");
+    if (card) {
+      card.classList.remove("srs-pending");
+      card.setAttribute("tabindex", "-1");
+    }
+    a.classList.remove("srs-concealed");
+    var lbl = $("#srs-a-label");
+    if (lbl) lbl.classList.remove("srs-concealed");
     $("#srs-reveal").hidden = true;
-    $("#srs-rates").hidden = false;
+    $("#srs-rates").removeAttribute("hidden");
   }
 
   function rateSrs(quality) {
@@ -785,6 +996,7 @@
   function refreshSelectors() {
     const qSel = $("#quiz-doc-select");
     const cSel = $("#chat-doc-select");
+    if (!qSel || !cSel) return;
     qSel.innerHTML = "";
     cSel.innerHTML = "";
     for (let i = 0; i < state.docs.length; i++) {
@@ -802,31 +1014,80 @@
       qSel.value = state.activeDocId;
       cSel.value = state.activeDocId;
     }
+    renderQuizEmpty();
   }
 
   function renderQuizEmpty() {
-    const area = $("#quiz-area");
-    const empty = $("#quiz-empty");
-    const docId = $("#quiz-doc-select").value;
-    const doc = docId ? getDoc(docId) : null;
-    const has = doc && doc.flashcards && doc.flashcards.length > 0;
-    empty.hidden = has;
-    area.hidden = !has && area.hidden;
+    var qSel = $("#quiz-doc-select");
+    if (!qSel) return;
+    var area = $("#quiz-area");
+    var empty = $("#quiz-empty");
+    var docId = qSel.value;
+    var doc = docId ? getDoc(docId) : null;
+    var hasFlash = doc && doc.flashcards && doc.flashcards.length > 0;
+    var hasContent = doc && (doc.content || "").trim().length >= 40;
+    empty.hidden = hasFlash || hasContent;
+    area.hidden = true;
+    var std = $("#btn-start-quiz");
+    var adv = $("#btn-start-quiz-advanced");
+    if (std) std.disabled = !hasFlash;
+    if (adv) adv.disabled = !hasContent;
   }
 
   function startQuiz() {
-    const docId = $("#quiz-doc-select").value;
-    const doc = getDoc(docId);
+    var docId = $("#quiz-doc-select").value;
+    var doc = getDoc(docId);
     if (!doc || !doc.flashcards || !doc.flashcards.length) {
       $("#quiz-empty").hidden = false;
       return;
     }
+    $("#quiz-feedback").textContent = "";
     quizItems = buildQuiz(doc.flashcards);
     quizIdx = 0;
     quizLocked = false;
     $("#quiz-area").hidden = false;
     $("#quiz-empty").hidden = true;
     renderQuizQuestion();
+  }
+
+  function startAdvancedQuiz() {
+    var docId = $("#quiz-doc-select").value;
+    var doc = getDoc(docId);
+    var fb = $("#quiz-feedback");
+    if (!doc || !(doc.content || "").trim()) {
+      $("#quiz-empty").hidden = false;
+      return;
+    }
+    var apiKey = ($("#openai-key").value || "").trim() || localStorage.getItem(OPENAI_STORAGE) || "";
+    if (apiKey.indexOf("sk-") !== 0) {
+      fb.textContent =
+        "Advanced quiz requires an OpenAI API key. Add it under Ask notes, then try again.";
+      fb.hidden = false;
+      return;
+    }
+    fb.hidden = false;
+    fb.textContent = "Looking up reference material on Wikipedia…";
+    var topicHint = (doc.title || "").trim() || (doc.content || "").split("\n")[0].trim().slice(0, 100);
+    fetchWikipediaContext(topicHint).then(function (wiki) {
+      var webExtract = wiki && wiki.extract ? wiki.extract : "";
+      var webLabel = wiki ? 'Wikipedia (“' + wiki.title + '”)' : "";
+      fb.textContent = wiki
+        ? "Building advanced quiz from your notes + " + webLabel + "…"
+        : "No Wikipedia article matched; building advanced quiz from your notes only…";
+      return generateAdvancedQuiz(doc.content, doc.title, webExtract, webLabel, apiKey);
+    }).then(function (result) {
+      if (!result || !result.ok) {
+        fb.textContent = (result && result.error) || "Quiz generation failed.";
+        return;
+      }
+      quizItems = result.items;
+      quizIdx = 0;
+      quizLocked = false;
+      $("#quiz-area").hidden = false;
+      $("#quiz-empty").hidden = true;
+      fb.textContent = "";
+      renderQuizQuestion();
+    });
   }
 
   function renderQuizQuestion() {
@@ -860,6 +1121,7 @@
     if (quizLocked) return;
     quizLocked = true;
     const buttons = $("#quiz-options").querySelectorAll("button");
+    // One-attempt behavior: disable all options and reveal the correct one.
     for (let i = 0; i < buttons.length; i++) {
       const b = buttons[i];
       b.disabled = true;
@@ -937,10 +1199,7 @@
             const name = tabEl.getAttribute("data-tab");
             setTab(name);
             if (name === "study") startSrsSession();
-            if (name === "quiz") {
-              refreshSelectors();
-              renderQuizEmpty();
-            }
+            if (name === "quiz") refreshSelectors();
             if (name === "insights") renderWeakTopics();
             if (name === "chat") {
               refreshSelectors();
@@ -992,18 +1251,70 @@
       persist();
       renderDocList();
       renderActiveDoc();
+      refreshSelectors();
       renderWeakTopics();
       $("#upload-status").textContent = "Regenerated summary and cards.";
     });
 
-    $("#srs-reveal").addEventListener("click", revealSrs);
+    $("#btn-refine-notes").addEventListener("click", function () {
+      var doc = state.activeDocId ? getDoc(state.activeDocId) : null;
+      var status = $("#refine-status");
+      if (!doc) return;
+      var apiKey = ($("#openai-key").value || "").trim() || localStorage.getItem(OPENAI_STORAGE) || "";
+      status.textContent = "Refining notes…";
+      refineNotesWithAI(doc.content, doc.title, apiKey).then(function (result) {
+        if (!result.ok) {
+          status.textContent = result.error;
+          return;
+        }
+        var fcs = doc.flashcards || [];
+        for (var i = 0; i < fcs.length; i++) delete state.srs[fcs[i].id];
+        doc.content = result.text.trim();
+        var built = buildStudyMaterial(doc.content, doc.id);
+        doc.chunks = built.chunks;
+        doc.flashcards = built.flashcards;
+        doc.summary = summarize(doc.content, 6);
+        for (var j = 0; j < doc.flashcards.length; j++) {
+          state.srs[doc.flashcards[j].id] = Object.assign({}, defaultSrsMeta(), { nextReview: 0 });
+        }
+        persist();
+        renderDocList();
+        renderActiveDoc();
+        refreshSelectors();
+        renderWeakTopics();
+        status.textContent =
+          "Notes refined. Summary and flashcards were rebuilt from the improved text.";
+      });
+    });
+
+    $("#srs-reveal").addEventListener("click", function (e) {
+      e.stopPropagation();
+      revealSrs();
+    });
+    $("#srs-card").addEventListener("click", function (e) {
+      if (e.target.closest("[data-quality]")) return;
+      revealSrs();
+    });
+    $("#srs-card").addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      if (!$("#srs-card").classList.contains("srs-pending")) return;
+      e.preventDefault();
+      revealSrs();
+    });
     $("#srs-rates").addEventListener("click", function (e) {
       const btn = e.target.closest("[data-quality]");
       if (!btn) return;
       rateSrs(Number(btn.getAttribute("data-quality")));
     });
 
+    $("#quiz-doc-select").addEventListener("change", function () {
+      renderQuizEmpty();
+    });
+
     $("#btn-start-quiz").addEventListener("click", startQuiz);
+    $("#btn-start-quiz-advanced").addEventListener("click", function () {
+      startAdvancedQuiz();
+    });
     $("#quiz-next").addEventListener("click", quizNext);
 
     $("#openai-key").addEventListener("change", function () {
@@ -1025,11 +1336,13 @@
       const apiKey = $("#openai-key").value.trim() || localStorage.getItem(OPENAI_STORAGE) || "";
 
       // Chat dropdown first; if empty, use the Library’s active set.
+      // This avoids "dead chat" when users forget to pick a document.
       let docId = $("#chat-doc-select").value;
       if (!docId && state.activeDocId) docId = state.activeDocId;
       const doc = docId ? getDoc(docId) : null;
 
       // Existing notes: answer from chunks (OpenAI optional, still grounded on notes).
+      // The context window is clipped in answerQuestion to control token use.
       if (doc) {
         const chunks =
           doc.chunks && doc.chunks.length > 0 ? doc.chunks : buildStudyMaterial(doc.content, doc.id).chunks;
@@ -1042,6 +1355,7 @@
       }
 
       // No sets: synthesize note text, save as a new doc, then answer from it.
+      // This is the instant-start flow for students with no uploaded material.
       status.textContent = "No notes yet — creating a new notes set for this topic…";
       generateNotesForTopic(q, apiKey).then(function (notes) {
         const shortTitle = q.length > 60 ? q.slice(0, 57) + "…" : q;
@@ -1072,7 +1386,6 @@
     renderActiveDoc();
     refreshSelectors();
     renderWeakTopics();
-    renderQuizEmpty();
     setTab("library");
   }
 
