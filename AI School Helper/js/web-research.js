@@ -5,14 +5,35 @@
  * This is “information from the web” in a structured, citable form—not arbitrary scraping.
  */
 
+const WIKI_REQUEST_TIMEOUT_MS = 8000;
+const WIKI_TOTAL_TIMEOUT_MS = 12000;
+
+function wikiTimedOutResult() {
+  return { title: "", extract: "", url: "", timedOut: true };
+}
+
+async function fetchJsonWithTimeout(url, timeoutMs) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) return null;
+    return await res.json();
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
 /**
  * @param {string} query Search string (e.g. document title or first topic line)
  * @param {number} maxChars Trim extract length
- * @returns {Promise<{ title: string, extract: string, url: string } | null>}
+ * @returns {Promise<{ title: string, extract: string, url: string, timedOut?: boolean } | null>}
  */
 export async function fetchWikipediaContext(query, maxChars = 12000) {
   const q = (query || "").trim().slice(0, 200);
   if (!q) return null;
+  const startedAt = Date.now();
+  const timeLeft = () => Math.max(0, WIKI_TOTAL_TIMEOUT_MS - (Date.now() - startedAt));
 
   const searchUrl = new URL("https://en.wikipedia.org/w/api.php");
   searchUrl.searchParams.set("action", "opensearch");
@@ -24,13 +45,14 @@ export async function fetchWikipediaContext(query, maxChars = 12000) {
 
   let titles;
   try {
-    const sRes = await fetch(searchUrl.toString());
-    if (!sRes.ok) return null;
-    const sData = await sRes.json();
+    const sTimeout = Math.min(WIKI_REQUEST_TIMEOUT_MS, Math.max(1200, timeLeft()));
+    if (sTimeout <= 0) return wikiTimedOutResult();
+    const sData = await fetchJsonWithTimeout(searchUrl.toString(), sTimeout);
     if (!sData || !Array.isArray(sData[1])) return null;
     titles = sData[1];
     if (!titles.length) return null;
-  } catch {
+  } catch (e) {
+    if (e?.name === "AbortError") return wikiTimedOutResult();
     return null;
   }
 
@@ -45,9 +67,10 @@ export async function fetchWikipediaContext(query, maxChars = 12000) {
   extractUrl.searchParams.set("titles", title);
 
   try {
-    const eRes = await fetch(extractUrl.toString());
-    if (!eRes.ok) return null;
-    const eData = await eRes.json();
+    const eTimeout = Math.min(WIKI_REQUEST_TIMEOUT_MS, Math.max(1200, timeLeft()));
+    if (eTimeout <= 0) return wikiTimedOutResult();
+    const eData = await fetchJsonWithTimeout(extractUrl.toString(), eTimeout);
+    if (!eData) return null;
     const pages = eData.query?.pages;
     if (!pages) return null;
     const page = Object.values(pages)[0];
@@ -57,7 +80,8 @@ export async function fetchWikipediaContext(query, maxChars = 12000) {
     if (maxChars && extract.length > maxChars) extract = extract.slice(0, maxChars) + "…";
     const url = `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`;
     return { title, extract, url };
-  } catch {
+  } catch (e) {
+    if (e?.name === "AbortError") return wikiTimedOutResult();
     return null;
   }
 }

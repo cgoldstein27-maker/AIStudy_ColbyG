@@ -45,6 +45,64 @@ body {
   line-height: 1.55;
 }
 
+/* Start gate: sign-in on this device (localStorage session, not a cloud account). */
+.start-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(242, 240, 235, 0.97);
+  backdrop-filter: blur(6px);
+}
+
+html.auto-signed-in .start-screen {
+  display: none !important;
+}
+
+.start-screen[hidden] {
+  display: none !important;
+}
+
+.start-card {
+  width: 100%;
+  max-width: 420px;
+}
+
+.start-title {
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+  margin: 0 0 0.5rem;
+}
+
+body.start-gate-active #main-app {
+  filter: blur(2px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.header-session {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.session-greeting {
+  font-weight: 500;
+}
+
+.btn-small {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.65rem;
+}
+
 .app {
   max-width: 1100px;
   margin: 0 auto;
@@ -234,6 +292,29 @@ body {
 
 .field.narrow {
   max-width: 320px;
+}
+
+.field.field-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.field.field-row input[type="checkbox"] {
+  width: auto;
+  margin-top: 0.2rem;
+}
+
+.field.field-row > span {
+  flex: 1;
+  min-width: 10rem;
+}
+
+.mono-ta {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .hint {

@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Colbys Impossible Snake Game</title>
+  <style>
+    :root {
+      --bg: #090b10;
+      --panel: #121826;
+      --text: #e6ecff;
+      --muted: #9aa6c3;
+      --accent: #62f1a5;
+      --danger: #ff5d7a;
+      --warn: #ffd166;
+      --grid: #1e2638;
+      --snake: #4cff9f;
+      --food: #58a6ff;
+      --fake: #ff4f4f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at top, #111827, var(--bg));
+      color: var(--text);
+      font-family: Arial, sans-serif;
+      padding: 16px;
+    }
+    .app {
+      width: min(95vw, 820px);
+      background: color-mix(in oklab, var(--panel) 88%, black);
+      border: 1px solid #293149;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45);
+    }
+    .hidden { display: none; }
+    .home-screen h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      letter-spacing: 0.05em;
+    }
+    .home-screen p {
+      margin: 0 0 14px;
+      color: var(--muted);
+    }
+    .rules {
+      margin: 0;
+      padding-left: 18px;
+      color: #d7e2ff;
+      line-height: 1.5;
+    }
+    .rules li { margin-bottom: 8px; }
+    .start-row {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .player-row {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .player-row label {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .player-row input {
+      border: 1px solid #3d4a6b;
+      background: #0f1524;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 10px;
+      min-width: 220px;
+    }
+    .leaderboard {
+      margin-top: 16px;
+      border: 1px solid #2c3958;
+      border-radius: 10px;
+      padding: 10px;
+      background: #0d1423;
+    }
+    .leaderboard h2 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+    .leaderboard-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .leaderboard-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid #1f2940;
+      color: #dce7ff;
+      font-size: 0.92rem;
+    }
+    .leaderboard-list li:last-child { border-bottom: 0; }
+    .leaderboard-empty {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .btn.primary {
+      background: #2a3c61;
+      border-color: #4a608f;
+    }
+    .btn.primary:hover { background: #365184; }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.2rem;
+      letter-spacing: 0.04em;
+    }
+    .stats {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+    .pill {
+      border: 1px solid #2a3652;
+      background: #0f1524;
+      border-radius: 999px;
+      padding: 6px 10px;
+    }
+    .danger { color: var(--danger); }
+    .warn { color: var(--warn); }
+    .accent { color: var(--accent); }
+    .board-wrap {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #344160;
+      background: #0b1120;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      image-rendering: pixelated;
+      transform-origin: center;
+      transition: transform 80ms linear, filter 120ms ease;
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      font-weight: bold;
+      letter-spacing: 0.04em;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+      opacity: 0;
+      transition: opacity 120ms ease;
+    }
+    .overlay.show { opacity: 1; }
+    .clown-face {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: clamp(120px, 28vw, 260px);
+      line-height: 1;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(-140%) scale(0.9) rotate(-8deg);
+      transition: opacity 240ms ease, transform 520ms cubic-bezier(0.2, 0.9, 0.15, 1.05);
+      text-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      z-index: 3;
+    }
+    .clown-face.show {
+      opacity: 0.95;
+      transform: translateY(0) scale(1) rotate(0deg);
+    }
+    .controls {
+      margin-top: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 0.93rem;
+      color: var(--muted);
+    }
+    .btn {
+      cursor: pointer;
+      border: 1px solid #3d4a6b;
+      background: #1a2236;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-weight: 700;
+    }
+    .btn:hover { background: #243150; }
+    code {
+      background: #0c1322;
+      border: 1px solid #26314a;
+      border-radius: 6px;
+      padding: 1px 6px;
+      color: #d7e2ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section id="home-screen" class="home-screen">
+      <h1>Colbys Impossible Snake Game</h1>
+      <p>Normal snake rules apply, but this mode adds chaos challenges.</p>
+      <ul class="rules">
+        <li><strong>Inverted controls:</strong> Direction inputs randomly flip for short bursts (with warning popup).</li>
+        <li><strong>Food can flee:</strong> Real food may move away when you get close.</li>
+        <li><strong>Self-phase windows:</strong> You can sometimes pass through your own body.</li>
+        <li><strong>Speed spikes:</strong> Movement can suddenly become much faster.</li>
+        <li><strong>Fake food traps:</strong> Looks like food, but touching it ends the game.</li>
+        <li><strong>Screen glitches:</strong> The board can shift and jitter briefly.</li>
+      </ul>
+      <div class="player-row">
+        <label for="player-name">Name:</label>
+        <input id="player-name" type="text" maxlength="20" placeholder="Enter your name" />
+      </div>
+      <div class="start-row">
+        <button id="start-game" class="btn primary" type="button">Start Game</button>
+        <span>Controls: <code>Arrow keys</code> / <code>WASD</code></span>
+      </div>
+      <div class="leaderboard">
+        <h2>Leaderboard</h2>
+        <ul id="leaderboard-list" class="leaderboard-list"></ul>
+        <p id="leaderboard-empty" class="leaderboard-empty">No scores yet. Be the first.</p>
+      </div>
+    </section>
+
+    <section id="game-screen" class="hidden">
+      <div class="top">
+        <h1>Colbys Impossible Snake Game</h1>
+        <div class="stats">
+          <span class="pill">Score: <strong id="score">0</strong></span>
+          <span class="pill">Best: <strong id="best">0</strong></span>
+          <span class="pill">Speed: <strong id="speed">1.00x</strong></span>
+          <span class="pill">State: <strong id="state">Stable</strong></span>
+        </div>
+      </div>
+
+      <div class="board-wrap">
+        <canvas id="game" width="640" height="640"></canvas>
+        <div id="overlay" class="overlay">Press any arrow key to start</div>
+        <div id="clown-face" class="clown-face" aria-hidden="true">🤡</div>
+      </div>
+
+      <div class="controls">
+        <span>Controls: <code>Arrow keys</code> / <code>WASD</code></span>
+        <div>
+          <button id="go-home" class="btn" type="button">Home</button>
+          <button id="restart" class="btn" type="button">Restart</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+    const bestEl = document.getElementById("best");
+    const speedEl = document.getElementById("speed");
+    const stateEl = document.getElementById("state");
+    const overlayEl = document.getElementById("overlay");
+    const clownFaceEl = document.getElementById("clown-face");
+    const restartBtn = document.getElementById("restart");
+    const goHomeBtn = document.getElementById("go-home");
+    const startGameBtn = document.getElementById("start-game");
+    const homeScreenEl = document.getElementById("home-screen");
+    const gameScreenEl = document.getElementById("game-screen");
+    const playerNameInput = document.getElementById("player-name");
+    const leaderboardListEl = document.getElementById("leaderboard-list");
+    const leaderboardEmptyEl = document.getElementById("leaderboard-empty");
+
+    const GRID = 24;
+    const CELL = canvas.width / GRID;
+    const BASE_TICK_MS = 120;
+
+    const DIRS = {
+      up: { x: 0, y: -1 },
+      down: { x: 0, y: 1 },
+      left: { x: -1, y: 0 },
+      right: { x: 1, y: 0 }
+    };
+    const OPPOSITE = {
+      up: "down",
+      down: "up",
+      left: "right",
+      right: "left"
+    };
+
+    const keyToDir = (key) => {
+      const k = key.toLowerCase();
+      if (k === "arrowup" || k === "w") return "up";
+      if (k === "arrowdown" || k === "s") return "down";
+      if (k === "arrowleft" || k === "a") return "left";
+      if (k === "arrowright" || k === "d") return "right";
+      return null;
+    };
+
+    let best = Number(localStorage.getItem("chaosSnakeBest") || 0);
+    bestEl.textContent = String(best);
+
+    const now = () => performance.now();
+    const rand = (min, max) => Math.random() * (max - min) + min;
+    const chance = (p) => Math.random() < p;
+    const LEADERBOARD_KEY = "chaosSnakeLeaderboard";
+    const PLAYER_NAME_KEY = "chaosSnakePlayerName";
+
+    let snake;
+    let direction;
+    let pendingDirection;
+    let food;
+    let fakeFoods;
+    let score;
+    let running;
+    let dead;
+    let lastFrame;
+    let stepAccumulator;
+    let speedMultiplier;
+    let speedBurstUntil;
+    let nextSpeedBurstAt;
+    let invertUntil;
+    let nextInvertAt;
+    let lastInvertStartCountdown;
+    let lastInvertEndCountdown;
+    let selfPhaseUntil;
+    let nextSelfPhaseAt;
+    let glitchUntil;
+    let nextGlitchAt;
+    let nextFakeSpawnAt;
+    let currentPlayerName;
+    let scoreSaved;
+    let audioCtx;
+
+    function getLeaderboard() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || "[]");
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function renderLeaderboard() {
+      const entries = getLeaderboard()
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
+      leaderboardListEl.innerHTML = "";
+      if (!entries.length) {
+        leaderboardEmptyEl.style.display = "block";
+        return;
+      }
+      leaderboardEmptyEl.style.display = "none";
+      entries.forEach((entry, i) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<span>${i + 1}. ${entry.name}</span><strong>${entry.score}</strong>`;
+        leaderboardListEl.appendChild(li);
+      });
+    }
+
+    function saveScoreIfNeeded() {
+      if (scoreSaved) return;
+      scoreSaved = true;
+      const entries = getLeaderboard();
+      entries.push({
+        name: currentPlayerName || "Player",
+        score: Number(score || 0),
+        at: Date.now()
+      });
+      localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(entries));
+      renderLeaderboard();
+    }
+
+    function playGoofyLoseSound() {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+      if (!audioCtx) audioCtx = new AudioContextClass();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+
+      const t0 = audioCtx.currentTime;
+      const honkAt = (start, f1, f2) => {
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc1.type = "square";
+        osc2.type = "triangle";
+        osc1.frequency.setValueAtTime(f1, start);
+        osc2.frequency.setValueAtTime(f2, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.2, start + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.19);
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc1.start(start);
+        osc2.start(start);
+        osc1.stop(start + 0.2);
+        osc2.stop(start + 0.2);
+      };
+
+      // Double honk + short wobble for clown vibe.
+      honkAt(t0, 640, 320);
+      honkAt(t0 + 0.23, 520, 260);
+
+      const wobble = audioCtx.createOscillator();
+      const wobbleGain = audioCtx.createGain();
+      wobble.type = "sawtooth";
+      wobble.frequency.setValueAtTime(260, t0 + 0.45);
+      wobble.frequency.exponentialRampToValueAtTime(120, t0 + 0.85);
+      wobbleGain.gain.setValueAtTime(0.0001, t0 + 0.45);
+      wobbleGain.gain.exponentialRampToValueAtTime(0.08, t0 + 0.5);
+      wobbleGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.9);
+      wobble.connect(wobbleGain);
+      wobbleGain.connect(audioCtx.destination);
+      wobble.start(t0 + 0.45);
+      wobble.stop(t0 + 0.92);
+    }
+
+    function randomCell() {
+      return {
+        x: Math.floor(Math.random() * GRID),
+        y: Math.floor(Math.random() * GRID)
+      };
+    }
+
+    function occupiedBySnake(cell) {
+      return snake.some((s) => s.x === cell.x && s.y === cell.y);
+    }
+
+    function randomFreeCell() {
+      let c = randomCell();
+      let tries = 0;
+      while ((occupiedBySnake(c) || (food && food.x === c.x && food.y === c.y) || fakeFoods.some((f) => f.x === c.x && f.y === c.y)) && tries < 300) {
+        c = randomCell();
+        tries += 1;
+      }
+      return c;
+    }
+
+    function resetGame() {
+      snake = [
+        { x: 10, y: 12 },
+        { x: 9, y: 12 },
+        { x: 8, y: 12 }
+      ];
+      direction = "right";
+      pendingDirection = "right";
+      food = { x: 16, y: 12 };
+      fakeFoods = [];
+      score = 0;
+      scoreSaved = false;
+      running = false;
+      dead = false;
+      lastFrame = now();
+      stepAccumulator = 0;
+
+      speedMultiplier = 1;
+      speedBurstUntil = 0;
+      nextSpeedBurstAt = now() + rand(3000, 7000);
+
+      invertUntil = 0;
+      nextInvertAt = now() + rand(7000, 11000);
+      lastInvertStartCountdown = null;
+      lastInvertEndCountdown = null;
+
+      selfPhaseUntil = 0;
+      nextSelfPhaseAt = now() + rand(4500, 8500);
+
+      glitchUntil = 0;
+      nextGlitchAt = now() + rand(2200, 5000);
+      nextFakeSpawnAt = now() + rand(1800, 3600);
+
+      // Ensure at least one dangerous apple exists from the start.
+      fakeFoods.push(randomFreeCell());
+
+      scoreEl.textContent = "0";
+      speedEl.textContent = "1.00x";
+      stateEl.textContent = "Stable";
+      clownFaceEl.classList.remove("show");
+      overlay("Press any arrow key to start");
+      draw();
+    }
+
+    function showGameScreen() {
+      homeScreenEl.classList.add("hidden");
+      gameScreenEl.classList.remove("hidden");
+    }
+
+    function showHomeScreen() {
+      gameScreenEl.classList.add("hidden");
+      homeScreenEl.classList.remove("hidden");
+      clownFaceEl.classList.remove("show");
+      renderLeaderboard();
+    }
+
+    function overlay(text, flash = false) {
+      overlayEl.textContent = text;
+      overlayEl.classList.add("show");
+      if (flash) {
+        setTimeout(() => {
+          if (running) overlayEl.classList.remove("show");
+        }, 650);
+      }
+    }
+
+    function clearOverlay() {
+      overlayEl.classList.remove("show");
+    }
+
+    function isSelfPhaseActive(t) {
+      return t < selfPhaseUntil;
+    }
+
+    function isInvertedActive(t) {
+      return t < invertUntil;
+    }
+
+    function moveFoodAway() {
+      const head = snake[0];
+      const options = [
+        { x: food.x + 1, y: food.y },
+        { x: food.x - 1, y: food.y },
+        { x: food.x, y: food.y + 1 },
+        { x: food.x, y: food.y - 1 }
+      ];
+      const valid = options.filter((c) => c.x >= 0 && c.y >= 0 && c.x < GRID && c.y < GRID && !occupiedBySnake(c) && !fakeFoods.some((f) => f.x === c.x && f.y === c.y));
+      if (!valid.length) return;
+      valid.sort((a, b) => {
+        const da = Math.abs(a.x - head.x) + Math.abs(a.y - head.y);
+        const db = Math.abs(b.x - head.x) + Math.abs(b.y - head.y);
+        return db - da;
+      });
+      if (chance(0.78)) food = valid[0];
+    }
+
+    function moveFakeFoodTowardSnake(fake) {
+      const head = snake[0];
+      const candidates = [
+        { x: fake.x + 1, y: fake.y },
+        { x: fake.x - 1, y: fake.y },
+        { x: fake.x, y: fake.y + 1 },
+        { x: fake.x, y: fake.y - 1 }
+      ].filter((c) => c.x >= 0 && c.y >= 0 && c.x < GRID && c.y < GRID && !occupiedBySnake(c) && !(c.x === food.x && c.y === food.y));
+
+      if (!candidates.length) return fake;
+      candidates.sort((a, b) => {
+        const da = Math.abs(a.x - head.x) + Math.abs(a.y - head.y);
+        const db = Math.abs(b.x - head.x) + Math.abs(b.y - head.y);
+        return da - db;
+      });
+
+      // Usually chase directly, occasionally hesitate to keep it readable.
+      if (chance(0.84)) return candidates[0];
+      return fake;
+    }
+
+    function spawnRealFood() {
+      food = randomFreeCell();
+      if (chance(0.38)) {
+        // Fake food has moderate chance to appear near real food.
+        const fake = randomFreeCell();
+        fakeFoods.push(fake);
+      }
+      if (fakeFoods.length > 3) fakeFoods.shift();
+    }
+
+    function tick() {
+      const t = now();
+      let countdownActive = false;
+
+      if (t >= nextSpeedBurstAt) {
+        speedBurstUntil = t + rand(900, 2200);
+        nextSpeedBurstAt = t + rand(3500, 9000);
+      }
+      speedMultiplier = t < speedBurstUntil ? rand(1.7, 2.45) : 1;
+
+      if (t < nextInvertAt && t >= nextInvertAt - 3000) {
+        const secs = Math.ceil((nextInvertAt - t) / 1000);
+        countdownActive = true;
+        if (secs !== lastInvertStartCountdown) {
+          overlay(`Controls invert in ${secs}...`);
+          lastInvertStartCountdown = secs;
+        }
+      } else if (t < nextInvertAt - 3000) {
+        lastInvertStartCountdown = null;
+      }
+
+      if (t >= nextInvertAt && t >= invertUntil) {
+        invertUntil = t + rand(4200, 6200);
+        nextInvertAt = t + rand(9000, 13000);
+        lastInvertStartCountdown = null;
+        lastInvertEndCountdown = null;
+      }
+
+      if (t < invertUntil && t >= invertUntil - 3000) {
+        const secs = Math.ceil((invertUntil - t) / 1000);
+        countdownActive = true;
+        if (secs !== lastInvertEndCountdown) {
+          overlay(`Normal controls in ${secs}...`);
+          lastInvertEndCountdown = secs;
+        }
+      } else if (t < invertUntil - 3000) {
+        lastInvertEndCountdown = null;
+      }
+
+      if (t >= nextSelfPhaseAt) {
+        selfPhaseUntil = t + rand(1200, 2600);
+        nextSelfPhaseAt = t + rand(5400, 10500);
+      }
+
+      if (t >= nextGlitchAt) {
+        glitchUntil = t + rand(120, 400);
+        nextGlitchAt = t + rand(1800, 5000);
+      }
+
+      // Keep dangerous apples appearing during play.
+      if (t >= nextFakeSpawnAt) {
+        if (fakeFoods.length < 3) fakeFoods.push(randomFreeCell());
+        nextFakeSpawnAt = t + rand(2800, 5200);
+      }
+
+      direction = pendingDirection;
+      const d = DIRS[direction];
+      const nextHead = { x: snake[0].x + d.x, y: snake[0].y + d.y };
+
+      // Normal snake walls still apply.
+      if (nextHead.x < 0 || nextHead.y < 0 || nextHead.x >= GRID || nextHead.y >= GRID) {
+        die("You hit the wall.");
+        return;
+      }
+
+      const hitsSelf = snake.some((s) => s.x === nextHead.x && s.y === nextHead.y);
+      if (hitsSelf && !isSelfPhaseActive(t)) {
+        die("You hit yourself.");
+        return;
+      }
+
+      snake.unshift(nextHead);
+      let grew = false;
+
+      if (nextHead.x === food.x && nextHead.y === food.y) {
+        grew = true;
+        score += 1;
+        scoreEl.textContent = String(score);
+        if (score > best) {
+          best = score;
+          localStorage.setItem("chaosSnakeBest", String(best));
+          bestEl.textContent = String(best);
+        }
+        spawnRealFood();
+      }
+
+      const fakeHit = fakeFoods.findIndex((f) => f.x === nextHead.x && f.y === nextHead.y);
+      if (fakeHit !== -1) {
+        die("Fake food got you.");
+        return;
+      }
+
+      if (!grew) snake.pop();
+
+      // Food tries to flee when you are close.
+      const dist = Math.abs(food.x - snake[0].x) + Math.abs(food.y - snake[0].y);
+      if (dist <= 4 && chance(0.55)) moveFoodAway();
+
+      // Fake food now hunts the snake head.
+      fakeFoods = fakeFoods.map((f) => {
+        if (!chance(0.68)) return f;
+        return moveFakeFoodTowardSnake(f);
+      });
+
+      const states = [];
+      if (isInvertedActive(t)) states.push("Controls Inverted");
+      if (isSelfPhaseActive(t)) states.push("Self-Phase On");
+      if (t < speedBurstUntil) states.push("Speed Spike");
+      if (t < glitchUntil) states.push("Visual Glitch");
+      stateEl.textContent = states.length ? states.join(" | ") : "Stable";
+      speedEl.textContent = `${speedMultiplier.toFixed(2)}x`;
+
+      if (!countdownActive && running && !dead) {
+        clearOverlay();
+      }
+    }
+
+    function die(reason) {
+      running = false;
+      dead = true;
+      stateEl.textContent = "Dead";
+      playGoofyLoseSound();
+      clownFaceEl.classList.add("show");
+      overlay(`grizzo got ya  |  ${reason}  |  Press Restart`);
+      saveScoreIfNeeded();
+    }
+
+    function drawGrid(glitchShiftX = 0, glitchShiftY = 0) {
+      ctx.save();
+      ctx.translate(glitchShiftX, glitchShiftY);
+      ctx.strokeStyle = "rgba(88,110,160,0.22)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= GRID; i += 1) {
+        const p = i * CELL;
+        ctx.beginPath();
+        ctx.moveTo(p, 0);
+        ctx.lineTo(p, canvas.height);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, p);
+        ctx.lineTo(canvas.width, p);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawCell(cell, color, inset = 2, glitchShiftX = 0, glitchShiftY = 0) {
+      const x = cell.x * CELL + inset + glitchShiftX;
+      const y = cell.y * CELL + inset + glitchShiftY;
+      const s = CELL - inset * 2;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, s, s);
+    }
+
+    function draw() {
+      const t = now();
+      const glitched = t < glitchUntil;
+      const inverted = isInvertedActive(t);
+      const shiftX = glitched ? Math.round(rand(-10, 10)) : 0;
+      const shiftY = glitched ? Math.round(rand(-10, 10)) : 0;
+      const scale = glitched ? rand(0.982, 1.018) : 1;
+      canvas.style.transform = `scale(${scale})`;
+      canvas.style.filter = inverted ? "invert(1) hue-rotate(180deg)" : "none";
+
+      ctx.fillStyle = "#081120";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawGrid(shiftX, shiftY);
+
+      drawCell(food, "rgba(88,166,255,0.95)", 4, shiftX, shiftY);
+      fakeFoods.forEach((f) => drawCell(f, "rgba(255,79,79,0.95)", 4, shiftX, shiftY));
+
+      snake.forEach((segment, i) => {
+        const base = i === 0 ? "rgba(76,255,159,0.98)" : "rgba(76,255,159,0.78)";
+        drawCell(segment, base, i === 0 ? 2 : 3, shiftX, shiftY);
+      });
+    }
+
+    function gameLoop(t) {
+      const dt = t - lastFrame;
+      lastFrame = t;
+
+      if (running && !dead) {
+        stepAccumulator += dt;
+        const stepMs = BASE_TICK_MS / speedMultiplier;
+        while (stepAccumulator >= stepMs) {
+          tick();
+          stepAccumulator -= stepMs;
+          if (!running || dead) break;
+        }
+      }
+
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (gameScreenEl.classList.contains("hidden")) return;
+      const raw = keyToDir(e.key);
+      if (!raw) return;
+      e.preventDefault();
+      if (dead) return;
+
+      if (!running) {
+        running = true;
+        clearOverlay();
+      }
+
+      const t = now();
+      let target = raw;
+      if (isInvertedActive(t)) target = OPPOSITE[raw];
+
+      if (target !== OPPOSITE[direction]) {
+        pendingDirection = target;
+      }
+    });
+
+    restartBtn.addEventListener("click", resetGame);
+    goHomeBtn.addEventListener("click", () => {
+      showHomeScreen();
+    });
+    startGameBtn.addEventListener("click", () => {
+      const enteredName = playerNameInput.value.trim();
+      currentPlayerName = enteredName || "Player";
+      playerNameInput.value = currentPlayerName;
+      localStorage.setItem(PLAYER_NAME_KEY, currentPlayerName);
+      showGameScreen();
+      resetGame();
+    });
+
+    playerNameInput.value = localStorage.getItem(PLAYER_NAME_KEY) || "";
+    currentPlayerName = playerNameInput.value.trim() || "Player";
+    renderLeaderboard();
+    resetGame();
+    requestAnimationFrame((t) => {
+      lastFrame = t;
+      requestAnimationFrame(gameLoop);
+    });
+  </script>
+</body>
+</html>

@@ -6,8 +6,8 @@
  * uses the optional OpenAI features elsewhere.
  */
 
-/** Key used for the single localStorage entry holding the whole app state. */
-const STORAGE_KEY = "study-smart-v1";
+/** Base key; app may append a user id for per-account storage. */
+export const STORAGE_KEY_BASE = "study-smart-v1";
 
 /** Fresh empty shape; merged with parsed data on load so new fields get defaults. */
 export function defaultState() {
@@ -20,9 +20,9 @@ export function defaultState() {
 }
 
 /** Read and parse state; on error or missing data, return defaults. */
-export function loadState() {
+export function loadState(storageKey = STORAGE_KEY_BASE) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return defaultState();
     const parsed = JSON.parse(raw);
     return { ...defaultState(), ...parsed, docs: parsed.docs || [] };
@@ -32,8 +32,8 @@ export function loadState() {
 }
 
 /** Serialize the full state object to localStorage. */
-export function saveState(state) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+export function saveState(state, storageKey = STORAGE_KEY_BASE) {
+  localStorage.setItem(storageKey, JSON.stringify(state));
 }
 
 /** Short unique id for new documents and flashcards (no external deps). */

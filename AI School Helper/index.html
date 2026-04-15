@@ -8,10 +8,43 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
+  <!-- Hide the start gate immediately when “stay signed in” session exists (reduces flash). -->
+  <script>
+    (function () {
+      try {
+        var s = JSON.parse(localStorage.getItem("study-smart-session") || "null");
+        if (s && s.rememberMe && s.userId) document.documentElement.classList.add("auto-signed-in");
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
+  <!-- First-run / returning: sign in on this device; notes still live in localStorage. -->
+  <div id="start-screen" class="start-screen" role="dialog" aria-modal="true" aria-labelledby="start-title">
+    <div class="start-card card">
+      <h1 id="start-title" class="start-title">Study Smart</h1>
+      <p class="hint">
+        Create an account on <strong>this browser</strong> with email + password. Your library, SRS progress, and weak-topic stats stay saved under your account even after you close the tab. This is device-local storage, not a cloud account.
+      </p>
+      <label class="field">
+        <span>Email</span>
+        <input type="email" id="start-email" maxlength="120" placeholder="you@example.com" autocomplete="username" />
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" id="start-password" minlength="8" maxlength="128" placeholder="At least 8 characters" autocomplete="current-password" />
+      </label>
+      <label class="field field-row">
+        <input type="checkbox" id="start-remember" checked />
+        <span>Stay signed in on this browser (skip this screen next time)</span>
+      </label>
+      <button type="button" class="btn primary" id="btn-start-continue">Continue</button>
+      <p id="start-error" class="status" role="alert"></p>
+    </div>
+  </div>
+
   <!-- Shell: header (tabs) + main (one visible .panel per tab) + footer. Scripts at bottom load PDF.js then study-smart-bundle.js for file://. -->
-  <div class="app">
+  <div class="app" id="main-app">
     <header class="header">
       <div class="brand">
         <span class="logo" aria-hidden="true"></span>
@@ -20,8 +53,13 @@
           <p class="tagline">Note library, summaries, flashcards, and spaced repetition</p>
         </div>
       </div>
+      <div class="header-session" id="header-session" hidden>
+        <span class="session-greeting" id="session-greeting"></span>
+        <button type="button" class="btn btn-small" id="btn-sign-out">Sign out</button>
+      </div>
       <nav class="tabs" role="tablist" aria-label="Main">
         <button type="button" class="tab active" data-tab="library" role="tab" aria-selected="true">Library</button>
+        <button type="button" class="tab" data-tab="create" role="tab">Research notes</button>
         <button type="button" class="tab" data-tab="study" role="tab">Study (SRS)</button>
         <button type="button" class="tab" data-tab="quiz" role="tab">Quiz</button>
         <button type="button" class="tab" data-tab="insights" role="tab">Weak topics</button>
@@ -82,6 +120,50 @@
         </div>
       </section>
 
+      <!-- AI topic notes: Wikipedia + OpenAI -->
+      <section id="panel-create" class="panel" role="tabpanel" hidden>
+        <div class="grid-2">
+          <div class="card">
+            <h2>Research notes</h2>
+            <p class="hint">
+              Pick a topic and tell the AI how you want the notes shaped. The app pulls a matching
+              <strong>Wikipedia</strong> article when possible, then <strong>OpenAI</strong> writes study notes. Requires a key below (same storage as Ask notes).
+            </p>
+            <label class="field narrow">
+              <span>Save into</span>
+              <select id="create-notes-target"></select>
+            </label>
+            <label class="field">
+              <span>Topic or title</span>
+              <input type="text" id="create-notes-topic" placeholder="e.g. RNA transcription" />
+            </label>
+            <label class="field">
+              <span>Instructions for the AI</span>
+              <textarea id="create-notes-prompt" rows="6" placeholder="e.g. AP Biology depth, include common exam traps, add a comparison table, emphasize diagrams in words…"></textarea>
+            </label>
+            <label class="field field-row">
+              <input type="checkbox" id="create-notes-use-web" checked />
+              <span>Include Wikipedia reference (recommended; needs network)</span>
+            </label>
+            <label class="field">
+              <span>OpenAI API key (stored only in this browser)</span>
+              <input type="password" id="research-openai-key" placeholder="sk-…" autocomplete="off" />
+            </label>
+            <button type="button" class="btn primary" id="btn-create-notes-gen">Generate notes</button>
+            <p id="create-notes-status" class="status" role="status"></p>
+          </div>
+          <div class="card">
+            <h2>Preview &amp; save</h2>
+            <p class="hint">Edit the text, then save as a new library set or replace an existing one’s notes (flashcards and SRS reset for that set).</p>
+            <label class="field">
+              <span>Generated notes</span>
+              <textarea id="create-notes-preview" class="mono-ta" rows="22" placeholder="Generated notes appear here…"></textarea>
+            </label>
+            <button type="button" class="btn primary" id="btn-create-notes-save">Save to library</button>
+          </div>
+        </div>
+      </section>
+
       <!-- SRS -->
       <section id="panel-study" class="panel" role="tabpanel" hidden>
         <div class="card">
@@ -113,10 +195,16 @@
       <section id="panel-quiz" class="panel" role="tabpanel" hidden>
         <div class="card">
           <h2>Quiz</h2>
-          <p class="hint">Standard quiz uses your flashcards. Advanced quiz uses OpenAI plus a Wikipedia reference when a matching article exists (network required).</p>
+          <p class="hint">
+            Standard quiz uses the AI API to infer main ideas from your notes and ask paraphrased multiple-choice questions (not copied word-for-word). Without a key, it falls back to quick questions from flashcards. Advanced quiz adds Wikipedia when possible (network). You can paste your API key here or under Ask notes / Research notes (same saved key).
+          </p>
           <label class="field narrow">
             <span>Set</span>
             <select id="quiz-doc-select"></select>
+          </label>
+          <label class="field">
+            <span>OpenAI API key (optional, same as Ask notes)</span>
+            <input type="password" id="quiz-openai-key" placeholder="sk-…" autocomplete="off" />
           </label>
           <div class="row">
             <button type="button" class="btn primary" id="btn-start-quiz">Standard quiz</button>
@@ -129,7 +217,7 @@
             <p id="quiz-feedback" class="feedback" role="status"></p>
             <button type="button" class="btn" id="quiz-next" hidden>Next</button>
           </div>
-          <p id="quiz-empty" class="empty">Select a set. Standard quiz needs flashcards; advanced quiz needs note text and an API key under Ask notes.</p>
+          <p id="quiz-empty" class="empty">Select a set. Standard quiz needs note text (40+ chars) and an API key for paraphrased questions, or flashcards for quick mode. Advanced quiz needs note text and a key.</p>
         </div>
       </section>
 
@@ -158,6 +246,11 @@
               <input type="password" id="openai-key" placeholder="sk-…" autocomplete="off" />
             </label>
             <label class="field">
+              <span>AI API base URL (optional)</span>
+              <input type="url" id="openai-api-base" placeholder="https://api.openai.com/v1" autocomplete="off" />
+            </label>
+            <p class="hint">Leave base URL empty for OpenAI. Use your school or proxy URL (must end with <code>/v1</code>) for an OpenAI-compatible gateway.</p>
+            <label class="field">
               <span>Message</span>
               <textarea id="chat-input" rows="3" placeholder="What is photosynthesis according to my notes?"></textarea>
             </label>
@@ -173,7 +266,7 @@
     </main>
 
     <footer class="footer">
-      <span>Data stays in your browser (localStorage). No account required.</span>
+      <span>Notes and progress stay in your browser (localStorage). Sign-in is device-only, not a cloud account.</span>
     </footer>
   </div>
 

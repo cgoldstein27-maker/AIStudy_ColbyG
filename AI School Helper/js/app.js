@@ -7,30 +7,204 @@
  *   - `study-smart-bundle.js` (no modules; for opening index.html from disk).
  */
 
-import { loadState, saveState, newId, defaultState } from "./storage.js";
+import { loadState, saveState, newId, defaultState, STORAGE_KEY_BASE } from "./storage.js";
 import { buildStudyMaterial, summarize, buildQuiz } from "./study-engine.js";
 import { scheduleReview, defaultSrsMeta, isDue } from "./srs.js";
 import { recordWeak, weakTopicList } from "./weak-topics.js";
 import {
   answerQuestion,
   generateNotesForTopic,
+  generateResearchNotes,
   refineNotesWithAI,
+  generateConceptualQuiz,
   generateAdvancedQuiz,
 } from "./chat.js";
 import { fetchWikipediaContext } from "./web-research.js";
+import { OPENAI_API_BASE_STORAGE_KEY } from "./openai-api.js";
 
-/** localStorage key for the optional OpenAI API key (never sent except to OpenAI by chat.js). */
+/** localStorage key for the optional OpenAI API key (never sent except to your chosen AI API by chat.js). */
 const OPENAI_STORAGE = "study-smart-openai-key";
+const USER_INDEX_KEY = "study-smart-users-v1";
+
+/** Local “login” (display name + stay signed in). Not a server account. */
+const SESSION_KEY = "study-smart-session";
+/** Last main tab so we can reopen where the user left off. */
+const LAST_TAB_KEY = "study-smart-last-tab";
+const VALID_TABS = new Set(["library", "create", "study", "quiz", "insights", "chat"]);
+
+let mainAppInitialized = false;
 
 /** @type {ReturnType<typeof loadState>} */
-let state = loadState();
+let currentStateStorageKey = STORAGE_KEY_BASE;
+let state = defaultState();
 
 /** Shorthand for one DOM node (matches how the HTML ids are set up). */
 const $ = (sel) => document.querySelector(sel);
 
+function readApiKey() {
+  const norm = (v) => (v == null || typeof v !== "string" ? "" : v.trim().replace(/\u00a0/g, ""));
+  return (
+    norm($("#research-openai-key")?.value) ||
+    norm($("#openai-key")?.value) ||
+    norm($("#quiz-openai-key")?.value) ||
+    norm(localStorage.getItem(OPENAI_STORAGE)) ||
+    ""
+  );
+}
+
+function syncOpenAiKeyFields() {
+  const v = localStorage.getItem(OPENAI_STORAGE) || "";
+  for (const id of ["openai-key", "research-openai-key", "quiz-openai-key"]) {
+    const el = document.getElementById(id);
+    if (el && !el.value) el.value = v;
+  }
+}
+
+function persistOpenAiKeyFromField(el) {
+  if (!el) return;
+  const v = el.value.trim();
+  if (v) localStorage.setItem(OPENAI_STORAGE, v);
+  else localStorage.removeItem(OPENAI_STORAGE);
+  for (const id of ["openai-key", "research-openai-key", "quiz-openai-key"]) {
+    const node = document.getElementById(id);
+    if (node && node !== el) node.value = v;
+  }
+}
+
+function syncOpenAiBaseField() {
+  const el = $("#openai-api-base");
+  if (!el) return;
+  try {
+    const v = localStorage.getItem(OPENAI_API_BASE_STORAGE_KEY) || "";
+    if (v && !el.value) el.value = v;
+  } catch {
+    /* ignore */
+  }
+}
+
+function persistOpenAiBaseFromField() {
+  const el = $("#openai-api-base");
+  if (!el) return;
+  const v = (el.value || "").trim().replace(/\/+$/, "");
+  try {
+    if (!v) localStorage.removeItem(OPENAI_API_BASE_STORAGE_KEY);
+    else if (/^https?:\/\//i.test(v)) localStorage.setItem(OPENAI_API_BASE_STORAGE_KEY, v);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Write current in-memory state to localStorage. */
 function persist() {
-  saveState(state);
+  saveState(state, currentStateStorageKey);
+}
+
+const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
+
+function userIdFromEmail(email) {
+  const e = normalizeEmail(email);
+  let hash = 0;
+  for (let i = 0; i < e.length; i++) hash = (hash * 31 + e.charCodeAt(i)) >>> 0;
+  return `u-${hash.toString(36)}`;
+}
+
+function storageKeyForSession(s) {
+  if (!s?.userId) return STORAGE_KEY_BASE;
+  return `${STORAGE_KEY_BASE}::${s.userId}`;
+}
+
+function loadUserIndex() {
+  try {
+    const raw = localStorage.getItem(USER_INDEX_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveUserIndex(index) {
+  localStorage.setItem(USER_INDEX_KEY, JSON.stringify(index || {}));
+}
+
+function randomSaltHex() {
+  const arr = new Uint8Array(16);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(text || "")));
+  return Array.from(new Uint8Array(buf), (x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+function loadSessionRecord() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s || typeof s !== "object" || !s.email || !s.userId) return null;
+    return s;
+  } catch {
+    return null;
+  }
+}
+
+function saveSessionRecord(email, rememberMe) {
+  const norm = normalizeEmail(email);
+  localStorage.setItem(
+    SESSION_KEY,
+    JSON.stringify({
+      email: norm,
+      userId: userIdFromEmail(norm),
+      rememberMe: Boolean(rememberMe),
+    })
+  );
+}
+
+function getLastTab() {
+  try {
+    const t = localStorage.getItem(LAST_TAB_KEY);
+    return t && VALID_TABS.has(t) ? t : "library";
+  } catch {
+    return "library";
+  }
+}
+
+function persistLastTab(name) {
+  if (!VALID_TABS.has(name)) return;
+  try {
+    localStorage.setItem(LAST_TAB_KEY, name);
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function updateSessionHeader() {
+  const s = loadSessionRecord();
+  const wrap = $("#header-session");
+  const greet = $("#session-greeting");
+  if (!wrap || !greet) return;
+  const email = s?.email?.trim();
+  if (email) {
+    greet.textContent = `Signed in as ${email}`;
+    wrap.hidden = false;
+  } else {
+    wrap.hidden = true;
+  }
+}
+
+function showStartGate() {
+  const gate = $("#start-screen");
+  if (gate) gate.hidden = false;
+  document.body.classList.add("start-gate-active");
+}
+
+function hideStartGate() {
+  const gate = $("#start-screen");
+  if (gate) gate.hidden = true;
+  document.body.classList.remove("start-gate-active");
 }
 
 /** Show one main panel and mark the matching tab as active (accessibility + CSS). */
@@ -44,6 +218,7 @@ function setTab(name) {
     p.classList.toggle("active", p.id === `panel-${name}`);
     p.hidden = p.id !== `panel-${name}`;
   });
+  persistLastTab(name);
 }
 
 function getDoc(id) {
@@ -150,6 +325,30 @@ function processAndSaveDoc(title, content) {
   $("#upload-status").textContent = `Saved “${doc.title}” with ${flashcards.length} flashcards.`;
   $("#doc-title").value = "";
   $("#doc-content").value = "";
+  renderDocList();
+  renderActiveDoc();
+  refreshSelectors();
+  renderWeakTopics();
+}
+
+/** Replace an existing set’s body and rebuild chunks, summary, flashcards, and SRS rows. */
+function replaceDocNotes(docId, title, content) {
+  const doc = getDoc(docId);
+  if (!doc) return;
+  const trimmed = content.trim();
+  if (!trimmed) return;
+  for (const fc of doc.flashcards || []) delete state.srs[fc.id];
+  doc.title = (title || "").trim() || doc.title;
+  doc.content = trimmed;
+  const { chunks, flashcards } = buildStudyMaterial(doc.content, doc.id);
+  doc.chunks = chunks;
+  doc.flashcards = flashcards;
+  doc.summary = summarize(doc.content, 6);
+  for (const fc of flashcards) {
+    state.srs[fc.id] = { ...defaultSrsMeta(), nextReview: 0 };
+  }
+  state.activeDocId = doc.id;
+  persist();
   renderDocList();
   renderActiveDoc();
   refreshSelectors();
@@ -270,28 +469,51 @@ let quizItems = [];
 let quizIdx = 0;
 let quizLocked = false;
 
-/** Fill quiz + chat dropdowns from `state.docs`. */
+/** Fill quiz + chat + research-notes dropdowns from `state.docs`. */
 function refreshSelectors() {
   const qSel = $("#quiz-doc-select");
   const cSel = $("#chat-doc-select");
-  if (!qSel || !cSel) return;
-  qSel.innerHTML = "";
-  cSel.innerHTML = "";
+  if (qSel && cSel) {
+    qSel.innerHTML = "";
+    cSel.innerHTML = "";
+    for (const d of state.docs) {
+      const o1 = document.createElement("option");
+      o1.value = d.id;
+      o1.textContent = d.title;
+      qSel.appendChild(o1);
+      const o2 = document.createElement("option");
+      o2.value = d.id;
+      o2.textContent = d.title;
+      cSel.appendChild(o2);
+    }
+    if (state.activeDocId) {
+      qSel.value = state.activeDocId;
+      cSel.value = state.activeDocId;
+    }
+    renderQuizEmpty();
+  }
+  refreshCreateNotesTarget();
+}
+
+/** “Research notes” tab: new set vs replace an existing one. */
+function refreshCreateNotesTarget() {
+  const sel = $("#create-notes-target");
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = "";
+  const optNew = document.createElement("option");
+  optNew.value = "";
+  optNew.textContent = "— New note set —";
+  sel.appendChild(optNew);
   for (const d of state.docs) {
-    const o1 = document.createElement("option");
-    o1.value = d.id;
-    o1.textContent = d.title;
-    qSel.appendChild(o1);
-    const o2 = document.createElement("option");
-    o2.value = d.id;
-    o2.textContent = d.title;
-    cSel.appendChild(o2);
+    const o = document.createElement("option");
+    o.value = d.id;
+    o.textContent = `${d.title} (replace notes)`;
+    sel.appendChild(o);
   }
-  if (state.activeDocId) {
-    qSel.value = state.activeDocId;
-    cSel.value = state.activeDocId;
-  }
-  renderQuizEmpty();
+  const ids = new Set([...sel.options].map((o) => o.value));
+  if (prev && ids.has(prev)) sel.value = prev;
+  else if (state.activeDocId && ids.has(state.activeDocId)) sel.value = state.activeDocId;
 }
 
 function renderQuizEmpty() {
@@ -307,24 +529,67 @@ function renderQuizEmpty() {
   area.hidden = true;
   const std = $("#btn-start-quiz");
   const adv = $("#btn-start-quiz-advanced");
-  if (std) std.disabled = !hasFlash;
+  if (std) std.disabled = !(hasFlash || hasContent);
   if (adv) adv.disabled = !hasContent;
 }
 
-function startQuiz() {
+/** Standard quiz: AI paraphrases main ideas into MC questions when a key + note text exist; else flashcard-based. */
+async function startQuiz() {
   const docId = $("#quiz-doc-select").value;
   const doc = getDoc(docId);
-  if (!doc || !(doc.flashcards || []).length) {
+  const fb = $("#quiz-feedback");
+  if (!doc) {
     $("#quiz-empty").hidden = false;
     return;
   }
-  $("#quiz-feedback").textContent = "";
+  const hasFlash = (doc.flashcards || []).length > 0;
+  const hasEnoughText = (doc.content || "").trim().length >= 40;
+  if (!hasFlash && !hasEnoughText) {
+    $("#quiz-empty").hidden = false;
+    return;
+  }
+  fb.hidden = false;
+  fb.textContent = "";
+  const apiKey = readApiKey();
+  /** Shown under Q1 after render (renderQuizQuestion clears feedback first). */
+  let quizHint = "";
+
+  if (apiKey.startsWith("sk-") && hasEnoughText) {
+    fb.textContent = "Generating paraphrased questions from your notes…";
+    const result = await generateConceptualQuiz(doc.content, doc.title, apiKey);
+    if (result.ok) {
+      quizItems = result.items;
+      quizIdx = 0;
+      quizLocked = false;
+      $("#quiz-area").hidden = false;
+      $("#quiz-empty").hidden = true;
+      renderQuizQuestion();
+      return;
+    }
+    quizHint = `${result.error} Using flashcard-based questions instead.`;
+  }
+
+  if (!hasFlash) {
+    fb.textContent =
+      apiKey.startsWith("sk-") && hasEnoughText
+        ? quizHint
+        : "Add an OpenAI API key for paraphrased questions, or save notes that include flashcards.";
+    return;
+  }
+
   quizItems = buildQuiz(doc.flashcards);
   quizIdx = 0;
   quizLocked = false;
   $("#quiz-area").hidden = false;
   $("#quiz-empty").hidden = true;
+  if (quizHint) {
+    /* already set from failed AI */
+  } else if (!apiKey.startsWith("sk-") || !hasEnoughText) {
+    quizHint =
+      "Quick mode: questions follow your flashcards. Add an API key for paraphrased questions from full notes.";
+  }
   renderQuizQuestion();
+  if (quizHint) fb.textContent = quizHint;
 }
 
 /** Harder MC quiz: OpenAI + optional Wikipedia extract (see web-research.js). */
@@ -336,34 +601,40 @@ async function startAdvancedQuiz() {
     $("#quiz-empty").hidden = false;
     return;
   }
-  const apiKey = $("#openai-key").value.trim() || localStorage.getItem(OPENAI_STORAGE) || "";
+  const apiKey = readApiKey();
   if (!apiKey.startsWith("sk-")) {
-    fb.textContent = "Advanced quiz requires an OpenAI API key. Add it under Ask notes, then try again.";
+    fb.textContent = "Advanced quiz requires an OpenAI API key. Add it under Ask notes or Research notes.";
     fb.hidden = false;
     return;
   }
   fb.hidden = false;
-  fb.textContent = "Looking up reference material on Wikipedia…";
-  const topicHint = (doc.title || "").trim() || (doc.content || "").split("\n")[0].trim().slice(0, 100);
-  const wiki = await fetchWikipediaContext(topicHint);
-  const webExtract = wiki?.extract || "";
-  const webLabel = wiki ? `Wikipedia (“${wiki.title}”)` : "";
-  fb.textContent = wiki
-    ? `Building advanced quiz from your notes + ${webLabel}…`
-    : "No Wikipedia article matched; building advanced quiz from your notes only…";
+  try {
+    fb.textContent = "Looking up reference material on Wikipedia…";
+    const topicHint = (doc.title || "").trim() || (doc.content || "").split("\n")[0].trim().slice(0, 100);
+    const wiki = await fetchWikipediaContext(topicHint);
+    const webExtract = wiki?.extract || "";
+    const webLabel = wiki?.extract ? `Wikipedia (“${wiki.title}”)` : "";
+    fb.textContent = wiki?.extract
+      ? `Building advanced quiz from your notes + ${webLabel}…`
+      : wiki?.timedOut
+        ? "Wikipedia slow, continuing with notes-only."
+        : "No Wikipedia article matched; building advanced quiz from your notes only…";
 
-  const result = await generateAdvancedQuiz(doc.content, doc.title, webExtract, webLabel, apiKey);
-  if (!result.ok) {
-    fb.textContent = result.error;
-    return;
+    const result = await generateAdvancedQuiz(doc.content, doc.title, webExtract, webLabel, apiKey);
+    if (!result.ok) {
+      fb.textContent = result.error;
+      return;
+    }
+    quizItems = result.items;
+    quizIdx = 0;
+    quizLocked = false;
+    $("#quiz-area").hidden = false;
+    $("#quiz-empty").hidden = true;
+    fb.textContent = "";
+    renderQuizQuestion();
+  } catch (e) {
+    fb.textContent = `Advanced quiz failed: ${e.message || e}. Check your network and API key.`;
   }
-  quizItems = result.items;
-  quizIdx = 0;
-  quizLocked = false;
-  $("#quiz-area").hidden = false;
-  $("#quiz-empty").hidden = true;
-  fb.textContent = "";
-  renderQuizQuestion();
 }
 
 function renderQuizQuestion() {
@@ -470,10 +741,9 @@ function bindUi() {
       if (name === "study") startSrsSession();
       if (name === "quiz") refreshSelectors();
       if (name === "insights") renderWeakTopics();
-      if (name === "chat") {
+      if (name === "chat" || name === "create") {
         refreshSelectors();
-        const key = localStorage.getItem(OPENAI_STORAGE);
-        if (key) $("#openai-key").value = key;
+        syncOpenAiKeyFields();
       }
     });
   });
@@ -528,7 +798,7 @@ function bindUi() {
     const doc = state.activeDocId ? getDoc(state.activeDocId) : null;
     const status = $("#refine-status");
     if (!doc) return;
-    const apiKey = $("#openai-key").value.trim() || localStorage.getItem(OPENAI_STORAGE) || "";
+    const apiKey = readApiKey();
     status.textContent = "Refining notes…";
     const result = await refineNotesWithAI(doc.content, doc.title, apiKey);
     if (!result.ok) {
@@ -580,10 +850,58 @@ function bindUi() {
   });
   $("#quiz-next").addEventListener("click", quizNext);
 
-  $("#openai-key").addEventListener("change", () => {
-    const v = $("#openai-key").value.trim();
-    if (v) localStorage.setItem(OPENAI_STORAGE, v);
-    else localStorage.removeItem(OPENAI_STORAGE);
+  $("#openai-key")?.addEventListener("change", () => persistOpenAiKeyFromField($("#openai-key")));
+  $("#research-openai-key")?.addEventListener("change", () =>
+    persistOpenAiKeyFromField($("#research-openai-key"))
+  );
+  $("#quiz-openai-key")?.addEventListener("change", () => persistOpenAiKeyFromField($("#quiz-openai-key")));
+  $("#openai-api-base")?.addEventListener("change", persistOpenAiBaseFromField);
+
+  $("#btn-create-notes-gen")?.addEventListener("click", async () => {
+    const status = $("#create-notes-status");
+    const topic = $("#create-notes-topic").value.trim();
+    const prompt = $("#create-notes-prompt").value.trim();
+    const useWeb = $("#create-notes-use-web")?.checked !== false;
+    if (!topic && !prompt) {
+      status.textContent = "Enter a topic or instructions (or both).";
+      return;
+    }
+    const apiKey = readApiKey();
+    status.textContent = useWeb ? "Fetching Wikipedia reference…" : "Calling OpenAI…";
+    const result = await generateResearchNotes({
+      topic: topic || prompt.slice(0, 120),
+      userPrompt: prompt || `Write study notes on: ${topic}.`,
+      apiKey,
+      useWeb,
+    });
+    if (!result.ok) {
+      status.textContent = result.error;
+      return;
+    }
+    $("#create-notes-preview").value = result.text;
+    status.textContent = result.wikiUsed
+      ? `Notes generated using Wikipedia (“${result.wikiTitle}”) + OpenAI. Edit if needed, then save.`
+      : result.wikiTimedOut
+        ? "Wikipedia slow, continuing with notes-only. Notes generated from model knowledge; edit and save."
+        : "Notes generated (no Wikipedia match—model used general knowledge). Edit if needed, then save.";
+  });
+
+  $("#btn-create-notes-save")?.addEventListener("click", () => {
+    const status = $("#create-notes-status");
+    const preview = $("#create-notes-preview").value.trim();
+    if (!preview) {
+      status.textContent = "Generate notes first, or paste text into the preview.";
+      return;
+    }
+    const targetId = $("#create-notes-target")?.value || "";
+    const topic = $("#create-notes-topic").value.trim() || "Research notes";
+    if (targetId) {
+      replaceDocNotes(targetId, topic, preview);
+      status.textContent = `Updated “${getDoc(targetId)?.title || "set"}” in your library.`;
+    } else {
+      processAndSaveDoc(topic, preview);
+      status.textContent = `Saved new set “${topic}”. Open Library to review.`;
+    }
   });
 
   $("#btn-chat-send").addEventListener("click", async () => {
@@ -596,58 +914,145 @@ function bindUi() {
     status.textContent = "Thinking…";
     appendChat("user", q);
     $("#chat-input").value = "";
-    const apiKey = $("#openai-key").value.trim() || localStorage.getItem(OPENAI_STORAGE) || "";
+    const apiKey = readApiKey();
 
-    // Prefer chat dropdown, then whichever set is active in the Library.
-    // This keeps chat usable even if users forget to pick a source set.
-    let docId = $("#chat-doc-select").value;
-    if (!docId && state.activeDocId) docId = state.activeDocId;
-    const doc = docId ? getDoc(docId) : null;
+    try {
+      // Prefer chat dropdown, then whichever set is active in the Library.
+      let docId = $("#chat-doc-select").value;
+      if (!docId && state.activeDocId) docId = state.activeDocId;
+      const doc = docId ? getDoc(docId) : null;
 
-    // Ground answers in an existing saved set when we have one.
-    // `answerQuestion` can still use OpenAI, but only with these chunks as context.
-    if (doc) {
-      const chunks =
-        doc.chunks?.length > 0 ? doc.chunks : buildStudyMaterial(doc.content, doc.id).chunks;
-      const res = await answerQuestion(q, chunks, apiKey);
-      status.textContent =
-        res.source === "openai"
-          ? "Answer from model + your notes."
-          : "Answer from your notes (local retrieval).";
-      appendChat("bot", res.text, res.cites);
-      return;
-    }
+      if (doc) {
+        const chunks =
+          doc.chunks?.length > 0 ? doc.chunks : buildStudyMaterial(doc.content, doc.id).chunks;
+        const res = await answerQuestion(q, chunks, apiKey);
+        status.textContent =
+          res.source === "openai"
+            ? "Answer from model + your notes."
+            : "Answer from your notes (local retrieval).";
+        appendChat("bot", res.text, res.cites);
+        return;
+      }
 
-    // No sets yet: generate note text from the user message, save it, then answer from that material.
-    // This is the "just ask for a topic" onboarding path.
-    status.textContent = "No notes yet — creating a new notes set for this topic…";
-    const notes = await generateNotesForTopic(q, apiKey);
-    const shortTitle = q.length > 60 ? `${q.slice(0, 57)}…` : q;
-    processAndSaveDoc(shortTitle || "AI-generated notes", notes);
-    const newDoc = state.activeDocId ? getDoc(state.activeDocId) : null;
-    if (newDoc) {
-      const chunks =
-        newDoc.chunks?.length > 0 ? newDoc.chunks : buildStudyMaterial(newDoc.content, newDoc.id).chunks;
-      const res = await answerQuestion(q, chunks, apiKey);
-      status.textContent =
-        res.source === "openai"
-          ? "Answer from freshly generated notes."
-          : "Answer from freshly generated notes (local retrieval).";
-      appendChat("bot", res.text, res.cites);
-    } else {
-      status.textContent = "Created notes outline, but something went wrong linking it to chat.";
+      status.textContent = "No notes yet — creating a new notes set for this topic…";
+      const notes = await generateNotesForTopic(q, apiKey);
+      const shortTitle = q.length > 60 ? `${q.slice(0, 57)}…` : q;
+      processAndSaveDoc(shortTitle || "AI-generated notes", notes);
+      const newDoc = state.activeDocId ? getDoc(state.activeDocId) : null;
+      if (newDoc) {
+        const chunks =
+          newDoc.chunks?.length > 0 ? newDoc.chunks : buildStudyMaterial(newDoc.content, newDoc.id).chunks;
+        const res = await answerQuestion(q, chunks, apiKey);
+        status.textContent =
+          res.source === "openai"
+            ? "Answer from freshly generated notes."
+            : "Answer from freshly generated notes (local retrieval).";
+        appendChat("bot", res.text, res.cites);
+      } else {
+        status.textContent = "Created notes outline, but something went wrong linking it to chat.";
+      }
+    } catch (e) {
+      status.textContent = "Could not complete chat. Check your connection or try again.";
+      appendChat("bot", String(e?.message || e), []);
     }
   });
 }
 
-function boot() {
+function initMainApp() {
+  if (mainAppInitialized) return;
+  mainAppInitialized = true;
+  currentStateStorageKey = storageKeyForSession(loadSessionRecord());
+  state = loadState(currentStateStorageKey);
   if (!state.docs.length) state = { ...defaultState(), ...state };
   bindUi();
+  syncOpenAiKeyFields();
+  syncOpenAiBaseField();
   renderDocList();
   renderActiveDoc();
   refreshSelectors();
   renderWeakTopics();
-  setTab("library");
+  setTab(getLastTab());
+  updateSessionHeader();
+}
+
+async function onStartContinue() {
+  const err = $("#start-error");
+  const emailInput = $("#start-email");
+  const passInput = $("#start-password");
+  const remember = $("#start-remember");
+  const email = normalizeEmail(emailInput?.value);
+  const pass = String(passInput?.value || "");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (err) err.textContent = "Enter a valid email address.";
+    return;
+  }
+  if (pass.length < 8) {
+    if (err) err.textContent = "Password must be at least 8 characters.";
+    return;
+  }
+  if (err) err.textContent = "Signing in…";
+  const users = loadUserIndex();
+  const existing = users[email];
+  const salt = existing?.salt || randomSaltHex();
+  let hash = "";
+  try {
+    hash = await sha256Hex(`${salt}|${pass}`);
+  } catch (e) {
+    if (err) err.textContent = String(e?.message || e);
+    return;
+  }
+  if (existing && existing.passHash !== hash) {
+    if (err) err.textContent = "Incorrect password for this email.";
+    return;
+  }
+  if (!existing) {
+    users[email] = { email, salt, passHash: hash, createdAt: Date.now() };
+    saveUserIndex(users);
+  }
+  saveSessionRecord(email, remember?.checked !== false);
+  hideStartGate();
+  initMainApp();
+}
+
+function signOut() {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
+  location.reload();
+}
+
+function shouldSkipStartGate() {
+  const s = loadSessionRecord();
+  return Boolean(s?.rememberMe && s.userId && s.email);
+}
+
+function boot() {
+  $("#btn-start-continue")?.addEventListener("click", onStartContinue);
+  $("#btn-sign-out")?.addEventListener("click", signOut);
+  $("#start-email")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") onStartContinue();
+  });
+  $("#start-password")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") onStartContinue();
+  });
+
+  if (shouldSkipStartGate()) {
+    document.documentElement.classList.add("auto-signed-in");
+    hideStartGate();
+    initMainApp();
+    return;
+  }
+
+  const prev = loadSessionRecord();
+  if (prev?.email && $("#start-email")) {
+    $("#start-email").value = prev.email;
+  }
+  if ($("#start-remember")) {
+    $("#start-remember").checked = prev?.rememberMe !== false;
+  }
+  showStartGate();
 }
 
 boot();

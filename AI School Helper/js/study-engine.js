@@ -15,7 +15,8 @@ const STOP = new Set(
 
 /** Lowercase tokens suitable for overlap / TF scoring. */
 function tokenize(text) {
-  return text
+  if (text == null) return [];
+  return String(text)
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)

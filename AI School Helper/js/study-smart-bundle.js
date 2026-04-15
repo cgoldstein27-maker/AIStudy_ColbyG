@@ -12,8 +12,12 @@
 (function () {
   "use strict";
 
+  /** Optional OpenAI-compatible API root (localStorage); default https://api.openai.com/v1 */
+  var OPENAI_API_BASE_LS = "study-smart-openai-api-base";
+
   /* ========== STORAGE (localStorage) ========== */
-  const STORAGE_KEY = "study-smart-v1";
+  const STORAGE_KEY_BASE = "study-smart-v1";
+  let CURRENT_STATE_KEY = STORAGE_KEY_BASE;
 
   function defaultState() {
     return { docs: [], srs: {}, weakTopics: {}, activeDocId: null };
@@ -21,7 +25,7 @@
 
   function loadState() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(CURRENT_STATE_KEY);
       if (!raw) return defaultState();
       const parsed = JSON.parse(raw);
       return { ...defaultState(), ...parsed, docs: parsed.docs || [] };
@@ -31,7 +35,7 @@
   }
 
   function saveState(state) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(CURRENT_STATE_KEY, JSON.stringify(state));
   }
 
   function newId() {
@@ -47,7 +51,8 @@
   );
 
   function tokenize(text) {
-    return text
+    if (text == null) return [];
+    return String(text)
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, " ")
       .split(/\s+/)
@@ -309,6 +314,53 @@
   const STUDY_TUTOR_SYSTEM_PROMPT =
     "You are an advanced study tutor. Teach clearly in simple steps, assume high-school level unless the student asks for another level, and keep responses concise but meaningful. Use examples when helpful. If the student seems confused or asks repeated questions, explicitly say: \"This seems like a weak area. Let’s practice it more.\" Then simplify and give extra practice. For problem-solving, guide step-by-step instead of only giving final answers. After each explanation, include 3-5 flashcards in this exact format on separate lines: Q: ... then A: ... . When appropriate, include a short 3-4 question multiple-choice quiz and list the correct answers at the end. Never mention being an AI model.";
 
+  function openAiChatCompletionsUrl() {
+    var def = "https://api.openai.com/v1/chat/completions";
+    try {
+      var b = localStorage.getItem(OPENAI_API_BASE_LS);
+      var base = (b || "").trim().replace(/\/+$/, "");
+      if (!base || !/^https?:\/\//i.test(base)) return def;
+      return base + "/chat/completions";
+    } catch (e) {
+      return def;
+    }
+  }
+
+  /** OpenAI-compatible chat/completions with abort so the UI cannot hang on a stalled request. */
+  function openaiChatFetch(apiKey, payload, timeoutMs) {
+    timeoutMs = timeoutMs === undefined ? 90000 : timeoutMs;
+    var ctrl = new AbortController();
+    var tid = setTimeout(function () {
+      ctrl.abort();
+    }, timeoutMs);
+    return fetch(openAiChatCompletionsUrl(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + apiKey,
+      },
+      body: JSON.stringify(payload),
+      signal: ctrl.signal,
+    }).finally(function () {
+      clearTimeout(tid);
+    });
+  }
+
+  function normalizeChatChunks(chunks) {
+    if (!Array.isArray(chunks)) return [];
+    return chunks
+      .map(function (c) {
+        if (!c || typeof c !== "object") return null;
+        return {
+          topic: c.topic != null ? String(c.topic) : "",
+          text: c.text != null ? String(c.text) : "",
+        };
+      })
+      .filter(function (c) {
+        return c && c.text.length > 0;
+      });
+  }
+
   function localAnswer(question, chunks) {
     const ranked = rankChunksForQuestion(chunks, question, 3);
     if (ranked.length === 0) {
@@ -360,46 +412,50 @@
 
   /** Returns a Promise (fetch) so the UI can .then() without async/await if needed. */
   function answerQuestion(question, chunks, apiKey) {
-    const local = localAnswer(question, chunks);
+    const safeChunks = normalizeChatChunks(chunks);
+    var local;
+    try {
+      local = localAnswer(question, safeChunks);
+    } catch (err) {
+      local = {
+        text:
+          "Something went wrong reading your notes. Try reloading the page or re-uploading your file.\n\n" +
+          String(err && err.message ? err.message : err),
+        cites: [],
+      };
+    }
     if (!apiKey || apiKey.indexOf("sk-") !== 0) {
-      return Object.assign({}, local, { source: "local" });
+      return Promise.resolve(Object.assign({}, local, { source: "local" }));
     }
 
-    const context = chunks
+    const context = safeChunks
       .map(function (c) {
         return "[" + c.topic + "]\n" + c.text;
       })
       .join("\n\n")
       .slice(0, 12000);
 
-    return fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + apiKey,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              STUDY_TUTOR_SYSTEM_PROMPT +
-              " Also: answer ONLY using the provided NOTES; if an answer is not in NOTES, say that clearly and ask for more material.",
-          },
-          {
-            role: "user",
-            content:
-              "NOTES:\n" +
-              context +
-              "\n\nQUESTION: " +
-              question +
-              "\n\nReturn format:\n- Clear step-by-step explanation\n- 3-5 flashcards (Q:/A:)\n- Optional 3-4 question MC quiz when useful + answer key",
-          },
-        ],
-        max_tokens: 600,
-        temperature: 0.3,
-      }),
+    return openaiChatFetch(apiKey, {
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            STUDY_TUTOR_SYSTEM_PROMPT +
+            " Also: answer ONLY using the provided NOTES; if an answer is not in NOTES, say that clearly and ask for more material.",
+        },
+        {
+          role: "user",
+          content:
+            "NOTES:\n" +
+            context +
+            "\n\nQUESTION: " +
+            question +
+            "\n\nReturn format:\n- Clear step-by-step explanation\n- 3-5 flashcards (Q:/A:)\n- Optional 3-4 question MC quiz when useful + answer key",
+        },
+      ],
+      max_tokens: 600,
+      temperature: 0.3,
     })
       .then(function (res) {
         if (!res.ok) {
@@ -433,44 +489,37 @@
   function generateNotesForTopic(topic, apiKey) {
     const safeTopic = topic.trim() || "the requested subject";
     if (!apiKey || apiKey.indexOf("sk-") !== 0) {
-      return (
+      return Promise.resolve(
         "Title: " +
-        safeTopic +
-        "\n\nOverview\n- Definition and key idea of " +
-        safeTopic +
-        ".\n- Why it matters in the course.\n\nCore concepts\n- Main terms, formulas, or rules.\n- Typical examples you might see on homework or tests.\n\nWorked example\n- Step-by-step example problem using " +
-        safeTopic +
-        ".\n\nCommon mistakes\n- 2–3 ways students usually get confused about " +
-        safeTopic +
-        ".\n\nSummary\n- 3–5 bullet recap of the most important ideas."
+          safeTopic +
+          "\n\nOverview\n- Definition and key idea of " +
+          safeTopic +
+          ".\n- Why it matters in the course.\n\nCore concepts\n- Main terms, formulas, or rules.\n- Typical examples you might see on homework or tests.\n\nWorked example\n- Step-by-step example problem using " +
+          safeTopic +
+          ".\n\nCommon mistakes\n- 2–3 ways students usually get confused about " +
+          safeTopic +
+          ".\n\nSummary\n- 3–5 bullet recap of the most important ideas."
       );
     }
 
-    return fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + apiKey,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a study tutor writing detailed notes for a high-school student. Use clear headings, simple language, step-by-step structure, examples, and at least one worked example. End with 3-5 flashcards in Q:/A: format and a short 3-4 question multiple-choice quiz with answer key.",
-          },
-          {
-            role: "user",
-            content:
-              "Write detailed, student-friendly notes on: " +
-              safeTopic +
-              ". Include:\n- High-level overview\n- Definitions of key terms\n- Important formulas or rules (if any)\n- At least one worked example\n- Common mistakes and tips\n- Short summary bullets at the end.",
-          },
-        ],
-        max_tokens: 900,
-        temperature: 0.4,
-      }),
+    return openaiChatFetch(apiKey, {
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a study tutor writing detailed notes for a high-school student. Use clear headings, simple language, step-by-step structure, examples, and at least one worked example. End with 3-5 flashcards in Q:/A: format and a short 3-4 question multiple-choice quiz with answer key.",
+        },
+        {
+          role: "user",
+          content:
+            "Write detailed, student-friendly notes on: " +
+            safeTopic +
+            ". Include:\n- High-level overview\n- Definitions of key terms\n- Important formulas or rules (if any)\n- At least one worked example\n- Common mistakes and tips\n- Short summary bullets at the end.",
+        },
+      ],
+      max_tokens: 900,
+      temperature: 0.4,
     })
       .then(function (res) {
         if (!res.ok) {
@@ -504,20 +553,45 @@
   }
 
   /* ========== WEB + AI (Wikipedia context, note refine, advanced quiz) ========== */
+  var WIKI_REQUEST_TIMEOUT_MS = 8000;
+  var WIKI_TOTAL_TIMEOUT_MS = 12000;
+
+  function wikiTimedOutResult() {
+    return { title: "", extract: "", url: "", timedOut: true };
+  }
+
+  function fetchJsonWithTimeout(url, timeoutMs) {
+    var ctrl = new AbortController();
+    var tid = setTimeout(function () {
+      ctrl.abort();
+    }, timeoutMs);
+    return fetch(url, { signal: ctrl.signal })
+      .then(function (res) {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .finally(function () {
+        clearTimeout(tid);
+      });
+  }
+
   function fetchWikipediaContext(query, maxChars) {
     maxChars = maxChars === undefined ? 12000 : maxChars;
     var q = (query || "").trim().slice(0, 200);
     if (!q) return Promise.resolve(null);
+    var startedAt = Date.now();
+    function timeLeft() {
+      return Math.max(0, WIKI_TOTAL_TIMEOUT_MS - (Date.now() - startedAt));
+    }
     var searchUrl =
       "https://en.wikipedia.org/w/api.php?action=opensearch&search=" +
       encodeURIComponent(q) +
       "&limit=1&namespace=0&format=json&origin=*";
-    return fetch(searchUrl)
+    var sTimeout = Math.min(WIKI_REQUEST_TIMEOUT_MS, Math.max(1200, timeLeft()));
+    if (sTimeout <= 0) return Promise.resolve(wikiTimedOutResult());
+    return fetchJsonWithTimeout(searchUrl, sTimeout)
       .then(function (sRes) {
-        if (!sRes.ok) return null;
-        return sRes.json();
-      })
-      .then(function (sData) {
+        var sData = sRes;
         if (!sData || !Array.isArray(sData[1])) return null;
         var titles = sData[1];
         if (!titles.length) return null;
@@ -525,9 +599,10 @@
         var extractUrl =
           "https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&exintro=false&explaintext=true&titles=" +
           encodeURIComponent(title);
-        return fetch(extractUrl).then(function (eRes) {
-          if (!eRes.ok) return null;
-          return eRes.json().then(function (eData) {
+        var eTimeout = Math.min(WIKI_REQUEST_TIMEOUT_MS, Math.max(1200, timeLeft()));
+        if (eTimeout <= 0) return wikiTimedOutResult();
+        return fetchJsonWithTimeout(extractUrl, eTimeout).then(function (eData) {
+          if (!eData) return null;
             var pages = eData.query && eData.query.pages;
             if (!pages) return null;
             var page = pages[Object.keys(pages)[0]];
@@ -536,12 +611,97 @@
             if (maxChars && extract.length > maxChars) extract = extract.slice(0, maxChars) + "…";
             var url = "https://en.wikipedia.org/wiki/" + encodeURIComponent(title.replace(/ /g, "_"));
             return { title: title, extract: extract, url: url };
-          });
         });
       })
-      .catch(function () {
+      .catch(function (e) {
+        if (e && e.name === "AbortError") return wikiTimedOutResult();
         return null;
       });
+  }
+
+  var RESEARCH_NOTES_SYSTEM =
+    "You write structured study notes for high school or early college. Use clear headings (# ## ###), definitions, worked examples where useful, common mistakes, and a short review checklist. When a Wikipedia extract is provided, ground factual claims in it; if unsure, write [verify]. If no extract was found, still write strong notes and mark shaky factual claims [verify]. End with 3–6 flashcard lines: Q: ... then A: ... (one pair per line block). No meta-commentary—start with the first heading.";
+
+  function generateResearchNotes(opts) {
+    opts = opts || {};
+    var apiKey = opts.apiKey || "";
+    if (!apiKey || apiKey.indexOf("sk-") !== 0) {
+      return Promise.resolve({ ok: false, error: "Add an OpenAI API key under Ask notes or Research notes." });
+    }
+    var topicLine = (opts.topic || "").trim() || "Study topic";
+    var instructions =
+      (opts.userPrompt || "").trim() ||
+      "Write thorough, exam-ready notes with clear structure and at least one worked example.";
+    var useWeb = opts.useWeb !== false;
+    var wikiPromise = useWeb ? fetchWikipediaContext(topicLine) : Promise.resolve(null);
+    return wikiPromise.then(function (wiki) {
+      var referenceBlock = "";
+      var wikiUsed = false;
+      var wikiTimedOut = false;
+      var wikiTitle = "";
+      var wikiUrl = "";
+      wikiTimedOut = !!(wiki && wiki.timedOut);
+      if (wiki && wiki.extract) {
+        wikiUsed = true;
+        wikiTitle = wiki.title;
+        wikiUrl = wiki.url;
+        referenceBlock =
+          "\n\n--- Wikipedia reference (\u201c" +
+          wiki.title +
+          "\u201d)\n" +
+          wiki.extract.slice(0, 14000) +
+          "\n---\n";
+      }
+      var tail = wikiUsed
+        ? "\nIntegrate the reference with the instructions. Prefer the reference for concrete facts."
+        : useWeb
+          ? wikiTimedOut
+            ? "\nWikipedia was slow to respond, so no web reference is available. Write strong notes from general knowledge and mark uncertain specifics [verify]."
+            : "\nNo Wikipedia article matched this topic; write the best general study notes you can and mark uncertain specifics [verify]."
+          : "\nWikipedia lookup was turned off; write strong notes from general knowledge and mark uncertain facts [verify].";
+      var userContent =
+        "TOPIC / TITLE: " +
+        topicLine +
+        "\n\nSTUDENT INSTRUCTIONS (follow closely):\n" +
+        instructions +
+        "\n" +
+        referenceBlock +
+        tail;
+      return openaiChatFetch(
+        apiKey,
+        {
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: RESEARCH_NOTES_SYSTEM },
+            { role: "user", content: userContent },
+          ],
+          max_tokens: 3500,
+          temperature: 0.35,
+        },
+        120000
+      ).then(function (res) {
+        if (!res.ok) {
+          return res.text().then(function (err) {
+            return { ok: false, error: "API error (" + res.status + "): " + err.slice(0, 200) };
+          });
+        }
+        return res.json().then(function (data) {
+          var text =
+            data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content
+              ? data.choices[0].message.content.trim()
+              : "";
+          if (!text) return { ok: false, error: "Empty response from API." };
+          return {
+            ok: true,
+            text: text,
+            wikiUsed: wikiUsed,
+            wikiTimedOut: wikiTimedOut,
+            wikiTitle: wikiTitle,
+            wikiUrl: wikiUrl,
+          };
+        });
+      });
+    });
   }
 
   function parseJsonFromModelContent(raw) {
@@ -549,7 +709,62 @@
     if (t.indexOf("```") === 0) {
       t = t.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
     }
-    return JSON.parse(t);
+    try {
+      return JSON.parse(t);
+    } catch (e1) {
+      var start = t.indexOf("{");
+      var end = t.lastIndexOf("}");
+      if (start >= 0 && end > start) {
+        try {
+          return JSON.parse(t.slice(start, end + 1));
+        } catch (e2) {
+          /* fall through */
+        }
+      }
+      throw new Error("No valid JSON object in model output.");
+    }
+  }
+
+  function openAiQuizChat(userBlock, systemContent, temperature, apiKey) {
+    var base = {
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemContent },
+        { role: "user", content: userBlock },
+      ],
+      max_tokens: 4096,
+      temperature: temperature,
+    };
+    function finishResponse(res) {
+      if (!res.ok) {
+        return res.text().then(function (err) {
+          return { ok: false, error: "API error (" + res.status + "): " + err.slice(0, 200) };
+        });
+      }
+      return res.json().then(function (data) {
+        var raw =
+          data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content
+            ? data.choices[0].message.content.trim()
+            : "";
+        if (!raw) return { ok: false, error: "Empty quiz response." };
+        return { ok: true, raw: raw };
+      });
+    }
+    return openaiChatFetch(apiKey, Object.assign({}, base, { response_format: { type: "json_object" } }), 120000)
+      .then(function (res) {
+        if (!res.ok && res.status === 400) {
+          return res.text().then(function (errBody) {
+            if (/response_format|json_object/i.test(errBody)) {
+              return openaiChatFetch(apiKey, base, 120000).then(finishResponse);
+            }
+            return { ok: false, error: "API error (400): " + errBody.slice(0, 200) };
+          });
+        }
+        return finishResponse(res);
+      })
+      .catch(function (e) {
+        return { ok: false, error: String(e.message || e) };
+      });
   }
 
   function refineNotesWithAI(rawNotes, title, apiKey) {
@@ -558,13 +773,9 @@
     }
     var trimmed = (rawNotes || "").trim().slice(0, 28000);
     if (!trimmed) return Promise.resolve({ ok: false, error: "No note text to refine." });
-    return fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + apiKey,
-      },
-      body: JSON.stringify({
+    return openaiChatFetch(
+      apiKey,
+      {
         model: "gpt-4o-mini",
         messages: [
           {
@@ -584,8 +795,9 @@
         ],
         max_tokens: 3500,
         temperature: 0.35,
-      }),
-    })
+      },
+      120000
+    )
       .then(function (res) {
         if (!res.ok) {
           return res.text().then(function (err) {
@@ -606,6 +818,90 @@
       });
   }
 
+  var NO_VERBATIM_QUIZ_RULES =
+    "CRITICAL: Do not copy sentences or long phrases from STUDENT_NOTES. Paraphrase every question and every answer option in fresh wording. Test understanding of ideas, not recognition of exact wording.";
+
+  function mapParsedQuestionsToItems(parsed, defaultTopicKey) {
+    var qs = parsed && parsed.questions;
+    if (!Array.isArray(qs) || qs.length === 0) {
+      return { ok: false, error: "Quiz response had no questions." };
+    }
+    var items = [];
+    for (var iq = 0; iq < qs.length; iq++) {
+      var q = qs[iq];
+      if (!q || typeof q !== "object") continue;
+      var qText = String(q.question != null ? q.question : "").trim();
+      var opts = [];
+      if (Array.isArray(q.options)) {
+        for (var j = 0; j < q.options.length; j++) {
+          opts.push(String(q.options[j]));
+        }
+      }
+      opts = opts.filter(function (s) {
+        return s.length > 0;
+      }).slice(0, 4);
+      if (qText.length < 3 || opts.length < 2) continue;
+      while (opts.length < 4) opts.push("(option)");
+      var idx = Math.min(3, Math.max(0, Number(q.correctIndex) || 0));
+      var topicKey = typeof q.topicKey === "string" && q.topicKey ? q.topicKey : defaultTopicKey;
+      var tagged = opts.map(function (text, i) {
+        return { text: text, correct: i === idx };
+      });
+      var shuffled = tagged.sort(function () {
+        return Math.random() - 0.5;
+      });
+      items.push({
+        question: qText,
+        options: shuffled.map(function (x) {
+          return { text: x.text, correct: x.correct };
+        }),
+        topicKey: topicKey,
+      });
+    }
+    if (items.length === 0) {
+      return { ok: false, error: "Quiz response had no usable questions." };
+    }
+    return { ok: true, items: items };
+  }
+
+  function generateConceptualQuiz(notesContent, docTitle, apiKey) {
+    if (!apiKey || apiKey.indexOf("sk-") !== 0) {
+      return Promise.resolve({ ok: false, error: "Add an OpenAI API key for paraphrased quiz questions." });
+    }
+    var notes = (notesContent || "").trim().slice(0, 14000);
+    if (notes.length < 40) {
+      return Promise.resolve({ ok: false, error: "Notes are too short to build a conceptual quiz." });
+    }
+    var title = (docTitle || "").trim() || "Study set";
+    var userBlock =
+      "Document title: " +
+      title +
+      "\n\nSTUDENT_NOTES:\n" +
+      notes +
+      "\n\n" +
+      NO_VERBATIM_QUIZ_RULES +
+      "\n\n" +
+      "First infer the main concepts from the notes, then write questions that check those concepts (recall, application, or which best describes…).\n\n" +
+      'Return ONLY valid JSON (no markdown fences) with this shape:\n{"questions":[{"question":"string","options":["A","B","C","D"],"correctIndex":0,"topicKey":"short-topic-slug"}]}\n' +
+      "Rules: 6 to 8 questions. Four options each. correctIndex 0-3. Distractors must be plausible but wrong. topicKey: short lowercase slug per question.";
+
+    return openAiQuizChat(
+      userBlock,
+      "You write multiple-choice study questions. Respond with a single JSON object only (no markdown). Never quote or closely mimic the student’s note text—always rephrase.",
+      0.4,
+      apiKey
+    ).then(function (chat) {
+      if (!chat.ok) return chat;
+      var parsed;
+      try {
+        parsed = parseJsonFromModelContent(chat.raw);
+      } catch (e) {
+        return { ok: false, error: "Could not parse quiz JSON. Try again." };
+      }
+      return mapParsedQuestionsToItems(parsed, "concept-quiz");
+    });
+  }
+
   function generateAdvancedQuiz(notesContent, docTitle, webExtract, webSourceLabel, apiKey) {
     if (!apiKey || apiKey.indexOf("sk-") !== 0) {
       return Promise.resolve({ ok: false, error: "Add an OpenAI API key to generate an advanced quiz." });
@@ -624,84 +920,279 @@
           web +
           "\n\n"
         : "No web reference was retrieved; base questions on STUDENT_NOTES only.\n\n") +
+      NO_VERBATIM_QUIZ_RULES +
+      "\n\n" +
       'Return ONLY valid JSON (no markdown fences) with this shape:\n{"questions":[{"question":"string","options":["A","B","C","D"],"correctIndex":0,"topicKey":"short-topic-slug"}]}\nRules: 6 to 8 questions. Four options each. correctIndex 0-3. Questions should be harder than simple recall: application, comparison, "which is FALSE", cause/effect, edge cases. Distractors must be plausible. topicKey should be a short lowercase slug (e.g. "photosynthesis-light-reactions").';
 
-    return fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + apiKey,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You write challenging multiple-choice questions for students. Output must be strictly valid JSON only. Never include commentary outside JSON.",
-          },
-          { role: "user", content: userBlock },
-        ],
-        max_tokens: 2800,
-        temperature: 0.45,
-      }),
-    })
-      .then(function (res) {
-        if (!res.ok) {
-          return res.text().then(function (err) {
-            return { ok: false, error: "API error (" + res.status + "): " + err.slice(0, 180) };
-          });
-        }
-        return res.json().then(function (data) {
-          var raw =
-            data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content
-              ? data.choices[0].message.content.trim()
-              : "";
-          if (!raw) return { ok: false, error: "Empty quiz response." };
-          var parsed;
-          try {
-            parsed = parseJsonFromModelContent(raw);
-          } catch (e) {
-            return { ok: false, error: "Could not parse quiz JSON. Try again." };
-          }
-          var qs = parsed.questions;
-          if (!Array.isArray(qs) || qs.length === 0) {
-            return { ok: false, error: "Quiz response had no questions." };
-          }
-          var items = qs.map(function (q) {
-            var opts = Array.isArray(q.options) ? q.options.slice(0, 4) : [];
-            while (opts.length < 4) opts.push("(option)");
-            var idx = Math.min(3, Math.max(0, Number(q.correctIndex) || 0));
-            var topicKey =
-              typeof q.topicKey === "string" && q.topicKey ? q.topicKey : "advanced-quiz";
-            var tagged = opts.map(function (text, i) {
-              return { text: String(text), correct: i === idx };
-            });
-            var shuffled = tagged.sort(function () {
-              return Math.random() - 0.5;
-            });
-            return {
-              question: String(q.question || "Question"),
-              options: shuffled.map(function (x) {
-                return { text: x.text, correct: x.correct };
-              }),
-              topicKey: topicKey,
-            };
-          });
-          return { ok: true, items: items };
-        });
-      })
-      .catch(function (e) {
-        return { ok: false, error: String(e.message || e) };
-      });
+    return openAiQuizChat(
+      userBlock,
+      "You write challenging multiple-choice questions for students. Respond with a single JSON object only (no markdown or prose). Never copy phrasing verbatim from the student notes—rephrase questions and options.",
+      0.45,
+      apiKey
+    ).then(function (chat) {
+      if (!chat.ok) return chat;
+      var parsed;
+      try {
+        parsed = parseJsonFromModelContent(chat.raw);
+      } catch (e) {
+        return { ok: false, error: "Could not parse quiz JSON. Try again." };
+      }
+      return mapParsedQuestionsToItems(parsed, "advanced-quiz");
+    });
   }
 
   /* ========== APP (DOM, tabs, Library, SRS UI, Quiz, Chat wiring) ========== */
   const OPENAI_STORAGE = "study-smart-openai-key";
-  let state = loadState();
+  const USER_INDEX_KEY = "study-smart-users-v1";
+  const SESSION_KEY = "study-smart-session";
+  const LAST_TAB_KEY = "study-smart-last-tab";
+  var VALID_TABS = { library: 1, create: 1, study: 1, quiz: 1, insights: 1, chat: 1 };
+  var mainAppInitialized = false;
+  let state = defaultState();
   const $ = function (sel) {
     return document.querySelector(sel);
   };
+
+  function normalizeEmail(email) {
+    return String(email || "").trim().toLowerCase();
+  }
+
+  function userIdFromEmail(email) {
+    var e = normalizeEmail(email);
+    var hash = 0;
+    for (var i = 0; i < e.length; i++) hash = (hash * 31 + e.charCodeAt(i)) >>> 0;
+    return "u-" + hash.toString(36);
+  }
+
+  function storageKeyForSession(s) {
+    if (!s || !s.userId) return STORAGE_KEY_BASE;
+    return STORAGE_KEY_BASE + "::" + s.userId;
+  }
+
+  function loadUserIndex() {
+    try {
+      var raw = localStorage.getItem(USER_INDEX_KEY);
+      if (!raw) return {};
+      var parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveUserIndex(index) {
+    localStorage.setItem(USER_INDEX_KEY, JSON.stringify(index || {}));
+  }
+
+  function randomSaltHex() {
+    var arr = new Uint8Array(16);
+    (window.crypto || window.msCrypto).getRandomValues(arr);
+    var out = "";
+    for (var i = 0; i < arr.length; i++) out += arr[i].toString(16).padStart(2, "0");
+    return out;
+  }
+
+  function sha256Hex(text) {
+    if (!window.crypto || !window.crypto.subtle) {
+      return Promise.reject(new Error("Secure hashing is unavailable in this browser."));
+    }
+    return window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(text || ""))).then(function (buf) {
+      var arr = new Uint8Array(buf);
+      var out = "";
+      for (var i = 0; i < arr.length; i++) out += arr[i].toString(16).padStart(2, "0");
+      return out;
+    });
+  }
+
+  function loadSessionRecord() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return null;
+      var s = JSON.parse(raw);
+      if (!s || typeof s !== "object" || !s.userId || !s.email) return null;
+      return s;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveSessionRecord(email, rememberMe) {
+    var norm = normalizeEmail(email);
+    localStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        email: norm,
+        userId: userIdFromEmail(norm),
+        rememberMe: !!rememberMe,
+      })
+    );
+  }
+
+  function getLastTab() {
+    try {
+      var t = localStorage.getItem(LAST_TAB_KEY);
+      return t && VALID_TABS[t] ? t : "library";
+    } catch (e) {
+      return "library";
+    }
+  }
+
+  function persistLastTab(name) {
+    if (!VALID_TABS[name]) return;
+    try {
+      localStorage.setItem(LAST_TAB_KEY, name);
+    } catch (e) {}
+  }
+
+  function updateSessionHeader() {
+    var s = loadSessionRecord();
+    var wrap = $("#header-session");
+    var greet = $("#session-greeting");
+    if (!wrap || !greet) return;
+    var email = s && s.email ? String(s.email).trim() : "";
+    if (email) {
+      greet.textContent = "Signed in as " + email;
+      wrap.hidden = false;
+    } else {
+      wrap.hidden = true;
+    }
+  }
+
+  function showStartGate() {
+    var gate = $("#start-screen");
+    if (gate) gate.hidden = false;
+    document.body.classList.add("start-gate-active");
+  }
+
+  function hideStartGate() {
+    var gate = $("#start-screen");
+    if (gate) gate.hidden = true;
+    document.body.classList.remove("start-gate-active");
+  }
+
+  function shouldSkipStartGate() {
+    var s = loadSessionRecord();
+    return !!(s && s.rememberMe && s.userId && s.email);
+  }
+
+  function initMainApp() {
+    if (mainAppInitialized) return;
+    mainAppInitialized = true;
+    var s = loadSessionRecord();
+    CURRENT_STATE_KEY = storageKeyForSession(s);
+    state = loadState();
+    if (!state.docs.length) state = Object.assign(defaultState(), state);
+    bindUi();
+    syncOpenAiKeyFields();
+    renderDocList();
+    renderActiveDoc();
+    refreshSelectors();
+    renderWeakTopics();
+    setTab(getLastTab());
+    updateSessionHeader();
+  }
+
+  function onStartContinue() {
+    var err = $("#start-error");
+    var emailInput = $("#start-email");
+    var passInput = $("#start-password");
+    var remember = $("#start-remember");
+    var email = normalizeEmail(emailInput && emailInput.value);
+    var pass = String((passInput && passInput.value) || "");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      if (err) err.textContent = "Enter a valid email address.";
+      return;
+    }
+    if (pass.length < 8) {
+      if (err) err.textContent = "Password must be at least 8 characters.";
+      return;
+    }
+    if (err) err.textContent = "Signing in…";
+    var users = loadUserIndex();
+    var existing = users[email];
+    var salt = existing && existing.salt ? existing.salt : randomSaltHex();
+    sha256Hex(salt + "|" + pass)
+      .then(function (hash) {
+        if (existing) {
+          if (existing.passHash !== hash) {
+            if (err) err.textContent = "Incorrect password for this email.";
+            return;
+          }
+        } else {
+          users[email] = { email: email, salt: salt, passHash: hash, createdAt: Date.now() };
+          saveUserIndex(users);
+        }
+        saveSessionRecord(email, remember ? remember.checked !== false : true);
+        hideStartGate();
+        initMainApp();
+      })
+      .catch(function (e) {
+        if (err) err.textContent = String(e && e.message ? e.message : e);
+      });
+  }
+
+  function signOut() {
+    try {
+      localStorage.removeItem(SESSION_KEY);
+    } catch (e) {}
+    location.reload();
+  }
+
+  function readApiKey() {
+    function norm(v) {
+      return v == null || typeof v !== "string" ? "" : v.trim().replace(/\u00a0/g, "");
+    }
+    var r = $("#research-openai-key");
+    var c = $("#openai-key");
+    var q = $("#quiz-openai-key");
+    return (
+      norm(r && r.value) ||
+      norm(c && c.value) ||
+      norm(q && q.value) ||
+      norm(localStorage.getItem(OPENAI_STORAGE)) ||
+      ""
+    );
+  }
+
+  function syncOpenAiKeyFields() {
+    var v = localStorage.getItem(OPENAI_STORAGE) || "";
+    var keys = ["openai-key", "research-openai-key", "quiz-openai-key"];
+    for (var i = 0; i < keys.length; i++) {
+      var el = document.getElementById(keys[i]);
+      if (el && !el.value) el.value = v;
+    }
+  }
+
+  function persistOpenAiKeyFromField(el) {
+    if (!el) return;
+    var v = (el.value || "").trim();
+    if (v) localStorage.setItem(OPENAI_STORAGE, v);
+    else localStorage.removeItem(OPENAI_STORAGE);
+    var keys = ["openai-key", "research-openai-key", "quiz-openai-key"];
+    for (var i = 0; i < keys.length; i++) {
+      var other = document.getElementById(keys[i]);
+      if (other && other !== el) other.value = v;
+    }
+  }
+
+  function syncOpenAiBaseField() {
+    var el = $("#openai-api-base");
+    if (!el) return;
+    try {
+      var v = localStorage.getItem(OPENAI_API_BASE_LS) || "";
+      if (v && !el.value) el.value = v;
+    } catch (e) {}
+  }
+
+  function persistOpenAiBaseFromField() {
+    var el = $("#openai-api-base");
+    if (!el) return;
+    var v = (el.value || "").trim().replace(/\/+$/, "");
+    try {
+      if (!v) localStorage.removeItem(OPENAI_API_BASE_LS);
+      else if (/^https?:\/\//i.test(v)) localStorage.setItem(OPENAI_API_BASE_LS, v);
+    } catch (e) {}
+  }
 
   function persist() {
     saveState(state);
@@ -722,6 +1213,7 @@
       p.classList.toggle("active", active);
       p.hidden = !active;
     }
+    persistLastTab(name);
   }
 
   function getDoc(id) {
@@ -881,6 +1373,30 @@
     renderWeakTopics();
   }
 
+  function replaceDocNotes(docId, title, content) {
+    var doc = getDoc(docId);
+    if (!doc) return;
+    var trimmed = content.trim();
+    if (!trimmed) return;
+    var fcs0 = doc.flashcards || [];
+    for (var fi = 0; fi < fcs0.length; fi++) delete state.srs[fcs0[fi].id];
+    doc.title = (title || "").trim() || doc.title;
+    doc.content = trimmed;
+    var built = buildStudyMaterial(doc.content, doc.id);
+    doc.chunks = built.chunks;
+    doc.flashcards = built.flashcards;
+    doc.summary = summarize(doc.content, 6);
+    for (var fj = 0; fj < doc.flashcards.length; fj++) {
+      state.srs[doc.flashcards[fj].id] = Object.assign({}, defaultSrsMeta(), { nextReview: 0 });
+    }
+    state.activeDocId = doc.id;
+    persist();
+    renderDocList();
+    renderActiveDoc();
+    refreshSelectors();
+    renderWeakTopics();
+  }
+
   function deleteActiveDoc() {
     const doc = state.activeDocId ? getDoc(state.activeDocId) : null;
     if (!doc) return;
@@ -993,28 +1509,52 @@
   let quizIdx = 0;
   let quizLocked = false;
 
+  function refreshCreateNotesTarget() {
+    var sel = $("#create-notes-target");
+    if (!sel) return;
+    var prev = sel.value;
+    sel.innerHTML = "";
+    var optNew = document.createElement("option");
+    optNew.value = "";
+    optNew.textContent = "\u2014 New note set \u2014";
+    sel.appendChild(optNew);
+    for (var ci = 0; ci < state.docs.length; ci++) {
+      var d = state.docs[ci];
+      var o = document.createElement("option");
+      o.value = d.id;
+      o.textContent = d.title + " (replace notes)";
+      sel.appendChild(o);
+    }
+    var ids = {};
+    for (var oi = 0; oi < sel.options.length; oi++) ids[sel.options[oi].value] = true;
+    if (prev && ids[prev]) sel.value = prev;
+    else if (state.activeDocId && ids[state.activeDocId]) sel.value = state.activeDocId;
+  }
+
   function refreshSelectors() {
     const qSel = $("#quiz-doc-select");
     const cSel = $("#chat-doc-select");
-    if (!qSel || !cSel) return;
-    qSel.innerHTML = "";
-    cSel.innerHTML = "";
-    for (let i = 0; i < state.docs.length; i++) {
-      const d = state.docs[i];
-      const o1 = document.createElement("option");
-      o1.value = d.id;
-      o1.textContent = d.title;
-      qSel.appendChild(o1);
-      const o2 = document.createElement("option");
-      o2.value = d.id;
-      o2.textContent = d.title;
-      cSel.appendChild(o2);
+    if (qSel && cSel) {
+      qSel.innerHTML = "";
+      cSel.innerHTML = "";
+      for (let i = 0; i < state.docs.length; i++) {
+        const d = state.docs[i];
+        const o1 = document.createElement("option");
+        o1.value = d.id;
+        o1.textContent = d.title;
+        qSel.appendChild(o1);
+        const o2 = document.createElement("option");
+        o2.value = d.id;
+        o2.textContent = d.title;
+        cSel.appendChild(o2);
+      }
+      if (state.activeDocId) {
+        qSel.value = state.activeDocId;
+        cSel.value = state.activeDocId;
+      }
+      renderQuizEmpty();
     }
-    if (state.activeDocId) {
-      qSel.value = state.activeDocId;
-      cSel.value = state.activeDocId;
-    }
-    renderQuizEmpty();
+    refreshCreateNotesTarget();
   }
 
   function renderQuizEmpty() {
@@ -1030,24 +1570,75 @@
     area.hidden = true;
     var std = $("#btn-start-quiz");
     var adv = $("#btn-start-quiz-advanced");
-    if (std) std.disabled = !hasFlash;
+    if (std) std.disabled = !(hasFlash || hasContent);
     if (adv) adv.disabled = !hasContent;
   }
 
   function startQuiz() {
     var docId = $("#quiz-doc-select").value;
     var doc = getDoc(docId);
-    if (!doc || !doc.flashcards || !doc.flashcards.length) {
+    var fb = $("#quiz-feedback");
+    if (!doc) {
       $("#quiz-empty").hidden = false;
       return;
     }
-    $("#quiz-feedback").textContent = "";
-    quizItems = buildQuiz(doc.flashcards);
-    quizIdx = 0;
-    quizLocked = false;
-    $("#quiz-area").hidden = false;
-    $("#quiz-empty").hidden = true;
-    renderQuizQuestion();
+    var hasFlash = doc.flashcards && doc.flashcards.length > 0;
+    var hasEnoughText = (doc.content || "").trim().length >= 40;
+    if (!hasFlash && !hasEnoughText) {
+      $("#quiz-empty").hidden = false;
+      return;
+    }
+    fb.hidden = false;
+    fb.textContent = "";
+    var apiKey = readApiKey();
+    var quizHint = "";
+
+    function runFlashcardFallback() {
+      if (!hasFlash) {
+        fb.textContent =
+          apiKey.indexOf("sk-") === 0 && hasEnoughText
+            ? quizHint
+            : "Add an OpenAI API key for paraphrased questions, or save notes that include flashcards.";
+        return;
+      }
+      quizItems = buildQuiz(doc.flashcards);
+      quizIdx = 0;
+      quizLocked = false;
+      $("#quiz-area").hidden = false;
+      $("#quiz-empty").hidden = true;
+      if (!quizHint && (apiKey.indexOf("sk-") !== 0 || !hasEnoughText)) {
+        quizHint =
+          "Quick mode: questions follow your flashcards. Add an API key for paraphrased questions from full notes.";
+      }
+      renderQuizQuestion();
+      if (quizHint) fb.textContent = quizHint;
+    }
+
+    if (apiKey.indexOf("sk-") === 0 && hasEnoughText) {
+      fb.textContent = "Generating paraphrased questions from your notes…";
+      generateConceptualQuiz(doc.content, doc.title, apiKey)
+        .then(function (result) {
+          if (result && result.ok) {
+            quizItems = result.items;
+            quizIdx = 0;
+            quizLocked = false;
+            $("#quiz-area").hidden = false;
+            $("#quiz-empty").hidden = true;
+            renderQuizQuestion();
+            return;
+          }
+          quizHint =
+            ((result && result.error) || "Quiz failed.") + " Using flashcard-based questions instead.";
+          runFlashcardFallback();
+        })
+        .catch(function (e) {
+          quizHint = String(e.message || e) + " Using flashcard-based questions instead.";
+          runFlashcardFallback();
+        });
+      return;
+    }
+
+    runFlashcardFallback();
   }
 
   function startAdvancedQuiz() {
@@ -1058,36 +1649,45 @@
       $("#quiz-empty").hidden = false;
       return;
     }
-    var apiKey = ($("#openai-key").value || "").trim() || localStorage.getItem(OPENAI_STORAGE) || "";
+    var apiKey = readApiKey();
     if (apiKey.indexOf("sk-") !== 0) {
       fb.textContent =
-        "Advanced quiz requires an OpenAI API key. Add it under Ask notes, then try again.";
+        "Advanced quiz requires an OpenAI API key. Add it under Ask notes or Research notes.";
       fb.hidden = false;
       return;
     }
     fb.hidden = false;
     fb.textContent = "Looking up reference material on Wikipedia…";
     var topicHint = (doc.title || "").trim() || (doc.content || "").split("\n")[0].trim().slice(0, 100);
-    fetchWikipediaContext(topicHint).then(function (wiki) {
-      var webExtract = wiki && wiki.extract ? wiki.extract : "";
-      var webLabel = wiki ? 'Wikipedia (“' + wiki.title + '”)' : "";
-      fb.textContent = wiki
-        ? "Building advanced quiz from your notes + " + webLabel + "…"
-        : "No Wikipedia article matched; building advanced quiz from your notes only…";
-      return generateAdvancedQuiz(doc.content, doc.title, webExtract, webLabel, apiKey);
-    }).then(function (result) {
-      if (!result || !result.ok) {
-        fb.textContent = (result && result.error) || "Quiz generation failed.";
-        return;
-      }
-      quizItems = result.items;
-      quizIdx = 0;
-      quizLocked = false;
-      $("#quiz-area").hidden = false;
-      $("#quiz-empty").hidden = true;
-      fb.textContent = "";
-      renderQuizQuestion();
-    });
+    fetchWikipediaContext(topicHint)
+      .then(function (wiki) {
+        var webExtract = wiki && wiki.extract ? wiki.extract : "";
+        var webLabel = wiki && wiki.extract ? 'Wikipedia (“' + wiki.title + '”)' : "";
+        fb.textContent =
+          wiki && wiki.extract
+            ? "Building advanced quiz from your notes + " + webLabel + "…"
+            : wiki && wiki.timedOut
+              ? "Wikipedia slow, continuing with notes-only."
+              : "No Wikipedia article matched; building advanced quiz from your notes only…";
+        return generateAdvancedQuiz(doc.content, doc.title, webExtract, webLabel, apiKey);
+      })
+      .then(function (result) {
+        if (!result || !result.ok) {
+          fb.textContent = (result && result.error) || "Quiz generation failed.";
+          return;
+        }
+        quizItems = result.items;
+        quizIdx = 0;
+        quizLocked = false;
+        $("#quiz-area").hidden = false;
+        $("#quiz-empty").hidden = true;
+        fb.textContent = "";
+        renderQuizQuestion();
+      })
+      .catch(function (e) {
+        fb.textContent =
+          "Advanced quiz failed: " + String(e.message || e) + ". Check your network and API key.";
+      });
   }
 
   function renderQuizQuestion() {
@@ -1175,6 +1775,7 @@
 
   function appendChat(role, text, cites) {
     const log = $("#chat-log");
+    if (!log) return;
     const div = document.createElement("div");
     div.className = "chat-msg " + role;
     div.textContent = text;
@@ -1201,10 +1802,10 @@
             if (name === "study") startSrsSession();
             if (name === "quiz") refreshSelectors();
             if (name === "insights") renderWeakTopics();
-            if (name === "chat") {
+            if (name === "chat" || name === "create") {
               refreshSelectors();
-              const key = localStorage.getItem(OPENAI_STORAGE);
-              if (key) $("#openai-key").value = key;
+    syncOpenAiKeyFields();
+    syncOpenAiBaseField();
             }
           };
         })(tabEls[i])
@@ -1260,7 +1861,7 @@
       var doc = state.activeDocId ? getDoc(state.activeDocId) : null;
       var status = $("#refine-status");
       if (!doc) return;
-      var apiKey = ($("#openai-key").value || "").trim() || localStorage.getItem(OPENAI_STORAGE) || "";
+      var apiKey = readApiKey();
       status.textContent = "Refining notes…";
       refineNotesWithAI(doc.content, doc.title, apiKey).then(function (result) {
         if (!result.ok) {
@@ -1318,75 +1919,195 @@
     $("#quiz-next").addEventListener("click", quizNext);
 
     $("#openai-key").addEventListener("change", function () {
-      const v = $("#openai-key").value.trim();
-      if (v) localStorage.setItem(OPENAI_STORAGE, v);
-      else localStorage.removeItem(OPENAI_STORAGE);
+      persistOpenAiKeyFromField($("#openai-key"));
     });
-
-    $("#btn-chat-send").addEventListener("click", function () {
-      const q = $("#chat-input").value.trim();
-      const status = $("#chat-status");
-      if (!q) {
-        status.textContent = "Type a question or a topic first.";
-        return;
-      }
-      status.textContent = "Thinking…";
-      appendChat("user", q);
-      $("#chat-input").value = "";
-      const apiKey = $("#openai-key").value.trim() || localStorage.getItem(OPENAI_STORAGE) || "";
-
-      // Chat dropdown first; if empty, use the Library’s active set.
-      // This avoids "dead chat" when users forget to pick a document.
-      let docId = $("#chat-doc-select").value;
-      if (!docId && state.activeDocId) docId = state.activeDocId;
-      const doc = docId ? getDoc(docId) : null;
-
-      // Existing notes: answer from chunks (OpenAI optional, still grounded on notes).
-      // The context window is clipped in answerQuestion to control token use.
-      if (doc) {
-        const chunks =
-          doc.chunks && doc.chunks.length > 0 ? doc.chunks : buildStudyMaterial(doc.content, doc.id).chunks;
-        answerQuestion(q, chunks, apiKey).then(function (res) {
-          status.textContent =
-            res.source === "openai" ? "Answer from model + your notes." : "Answer from your notes (local retrieval).";
-          appendChat("bot", res.text, res.cites);
-        });
-        return;
-      }
-
-      // No sets: synthesize note text, save as a new doc, then answer from it.
-      // This is the instant-start flow for students with no uploaded material.
-      status.textContent = "No notes yet — creating a new notes set for this topic…";
-      generateNotesForTopic(q, apiKey).then(function (notes) {
-        const shortTitle = q.length > 60 ? q.slice(0, 57) + "…" : q;
-        processAndSaveDoc(shortTitle || "AI-generated notes", notes);
-        const newDoc = state.activeDocId ? getDoc(state.activeDocId) : null;
-        if (newDoc) {
-          const chunks =
-            newDoc.chunks && newDoc.chunks.length > 0
-              ? newDoc.chunks
-              : buildStudyMaterial(newDoc.content, newDoc.id).chunks;
-          return answerQuestion(q, chunks, apiKey).then(function (res) {
-            status.textContent =
-              res.source === "openai"
-                ? "Answer from freshly generated notes."
-                : "Answer from freshly generated notes (local retrieval).";
-            appendChat("bot", res.text, res.cites);
-          });
-        }
-        status.textContent = "Created notes outline, but something went wrong linking it to chat.";
+    var quizKeyEl = $("#quiz-openai-key");
+    if (quizKeyEl) {
+      quizKeyEl.addEventListener("change", function () {
+        persistOpenAiKeyFromField($("#quiz-openai-key"));
       });
-    });
+    }
+    var researchKeyEl = $("#research-openai-key");
+    if (researchKeyEl) {
+      researchKeyEl.addEventListener("change", function () {
+        persistOpenAiKeyFromField($("#research-openai-key"));
+      });
+    }
+    var apiBaseEl = $("#openai-api-base");
+    if (apiBaseEl) {
+      apiBaseEl.addEventListener("change", function () {
+        persistOpenAiBaseFromField();
+      });
+    }
+
+    var btnCreateGen = $("#btn-create-notes-gen");
+    if (btnCreateGen) {
+      btnCreateGen.addEventListener("click", function () {
+        var status = $("#create-notes-status");
+        var topic = ($("#create-notes-topic").value || "").trim();
+        var prompt = ($("#create-notes-prompt").value || "").trim();
+        var useWebEl = $("#create-notes-use-web");
+        var useWeb = !useWebEl || useWebEl.checked;
+        if (!topic && !prompt) {
+          status.textContent = "Enter a topic or instructions (or both).";
+          return;
+        }
+        var apiKey = readApiKey();
+        status.textContent = useWeb ? "Fetching Wikipedia reference\u2026" : "Calling OpenAI\u2026";
+        generateResearchNotes({
+          topic: topic || prompt.slice(0, 120),
+          userPrompt: prompt || "Write study notes on: " + topic + ".",
+          apiKey: apiKey,
+          useWeb: useWeb,
+        }).then(function (result) {
+          if (!result.ok) {
+            status.textContent = result.error;
+            return;
+          }
+          $("#create-notes-preview").value = result.text;
+          status.textContent = result.wikiUsed
+            ? "Notes generated using Wikipedia (\u201c" +
+              result.wikiTitle +
+              "\u201d) + OpenAI. Edit if needed, then save."
+            : result.wikiTimedOut
+              ? "Wikipedia slow, continuing with notes-only. Notes generated from model knowledge; edit and save."
+              : "Notes generated (no Wikipedia match\u2014model used general knowledge). Edit if needed, then save.";
+        });
+      });
+    }
+
+    var btnCreateSave = $("#btn-create-notes-save");
+    if (btnCreateSave) {
+      btnCreateSave.addEventListener("click", function () {
+        var status = $("#create-notes-status");
+        var preview = ($("#create-notes-preview").value || "").trim();
+        if (!preview) {
+          status.textContent = "Generate notes first, or paste text into the preview.";
+          return;
+        }
+        var targetSel = $("#create-notes-target");
+        var targetId = targetSel ? targetSel.value : "";
+        var topic = ($("#create-notes-topic").value || "").trim() || "Research notes";
+        if (targetId) {
+          replaceDocNotes(targetId, topic, preview);
+          var saved = getDoc(targetId);
+          status.textContent = 'Updated \u201c' + (saved ? saved.title : "set") + '\u201d in your library.';
+        } else {
+          processAndSaveDoc(topic, preview);
+          status.textContent = 'Saved new set \u201c' + topic + '\u201d. Open Library to review.';
+        }
+      });
+    }
+
+    var btnChatSend = $("#btn-chat-send");
+    if (btnChatSend) {
+      btnChatSend.addEventListener("click", function () {
+        var status = $("#chat-status");
+        var inputEl = $("#chat-input");
+        try {
+          var q = (inputEl && inputEl.value ? inputEl.value : "").trim();
+          if (!q) {
+            if (status) status.textContent = "Type a question or a topic first.";
+            return;
+          }
+          if (status) status.textContent = "Thinking…";
+          appendChat("user", q);
+          if (inputEl) inputEl.value = "";
+          var apiKey = readApiKey();
+
+          // Chat dropdown first; if empty, use the Library’s active set.
+          var sel = $("#chat-doc-select");
+          var docId = sel && sel.value ? sel.value : "";
+          if (!docId && state.activeDocId) docId = state.activeDocId;
+          var doc = docId ? getDoc(docId) : null;
+
+          if (doc) {
+            var chunks =
+              doc.chunks && doc.chunks.length > 0 ? doc.chunks : buildStudyMaterial(doc.content, doc.id).chunks;
+            answerQuestion(q, chunks, apiKey)
+              .then(function (res) {
+                if (!res || typeof res.text !== "string") {
+                  if (status) status.textContent = "Got an unexpected response. Try again.";
+                  appendChat("bot", "Something went wrong formatting the answer. Please try again.", []);
+                  return;
+                }
+                if (status) {
+                  status.textContent =
+                    res.source === "openai"
+                      ? "Answer from model + your notes."
+                      : "Answer from your notes (local retrieval).";
+                }
+                appendChat("bot", res.text, res.cites);
+              })
+              .catch(function (e) {
+                if (status) status.textContent = "Could not finish the answer. Check your connection or API key.";
+                appendChat("bot", String(e.message || e), []);
+              });
+            return;
+          }
+
+          if (status) status.textContent = "No notes yet — creating a new notes set for this topic…";
+          generateNotesForTopic(q, apiKey)
+            .then(function (notes) {
+              var shortTitle = q.length > 60 ? q.slice(0, 57) + "…" : q;
+              processAndSaveDoc(shortTitle || "AI-generated notes", notes);
+              var newDoc = state.activeDocId ? getDoc(state.activeDocId) : null;
+              if (newDoc) {
+                var chunks2 =
+                  newDoc.chunks && newDoc.chunks.length > 0
+                    ? newDoc.chunks
+                    : buildStudyMaterial(newDoc.content, newDoc.id).chunks;
+                return answerQuestion(q, chunks2, apiKey).then(function (res) {
+                  if (!res || typeof res.text !== "string") {
+                    if (status) status.textContent = "Got an unexpected response. Try again.";
+                    appendChat("bot", "Something went wrong formatting the answer. Please try again.", []);
+                    return;
+                  }
+                  if (status) {
+                    status.textContent =
+                      res.source === "openai"
+                        ? "Answer from freshly generated notes."
+                        : "Answer from freshly generated notes (local retrieval).";
+                  }
+                  appendChat("bot", res.text, res.cites);
+                });
+              }
+              if (status) status.textContent = "Created notes outline, but something went wrong linking it to chat.";
+            })
+            .catch(function (e) {
+              if (status) status.textContent = "Could not create notes or answer. Check your connection or API key.";
+              appendChat("bot", String(e.message || e), []);
+            });
+        } catch (err) {
+          if (status) status.textContent = "Error: " + String(err && err.message ? err.message : err);
+          appendChat("bot", String(err && err.message ? err.message : err), []);
+        }
+      });
+    }
   }
 
   function boot() {
-    if (!state.docs.length) state = Object.assign(defaultState(), state);
-    bindUi();
-    renderDocList();
-    renderActiveDoc();
-    refreshSelectors();
-    renderWeakTopics();
-    setTab("library");
+    var btnCont = $("#btn-start-continue");
+    if (btnCont) btnCont.addEventListener("click", onStartContinue);
+    var btnOut = $("#btn-sign-out");
+    if (btnOut) btnOut.addEventListener("click", signOut);
+    var emailEl = $("#start-email");
+    var passEl = $("#start-password");
+    if (emailEl) emailEl.addEventListener("keydown", function (e) { if (e.key === "Enter") onStartContinue(); });
+    if (passEl) passEl.addEventListener("keydown", function (e) { if (e.key === "Enter") onStartContinue(); });
+
+    if (shouldSkipStartGate()) {
+      document.documentElement.classList.add("auto-signed-in");
+      hideStartGate();
+      initMainApp();
+      return;
+    }
+
+    var prev = loadSessionRecord();
+    if (prev && prev.email && emailEl) emailEl.value = prev.email;
+    var rem = $("#start-remember");
+    if (rem) rem.checked = prev ? prev.rememberMe !== false : true;
+    showStartGate();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
