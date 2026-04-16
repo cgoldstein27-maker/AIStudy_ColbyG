@@ -626,7 +626,19 @@
     opts = opts || {};
     var apiKey = opts.apiKey || "";
     if (!apiKey || apiKey.indexOf("sk-") !== 0) {
-      return Promise.resolve({ ok: false, error: "Add an OpenAI API key under Ask notes or Research notes." });
+      var localTopic = (opts.topic || "Study topic").trim() || "Study topic";
+      var localPrompt = (opts.userPrompt || "").trim();
+      var localText =
+        "# " +
+        localTopic +
+        "\n\n## Overview\n- Main idea and why it matters.\n- How this topic connects to your class goals.\n\n## Key terms\n- Define the core vocabulary in your own words.\n\n## Core ideas\n- Break the topic into 3-5 important concepts.\n\n## Example / application\n- Walk through one concrete example step by step.\n\n## Common mistakes\n- List 2-3 misunderstandings and how to avoid them.\n\n## Review checklist\n- [ ] I can explain the main idea.\n- [ ] I can define key terms.\n- [ ] I can solve/answer a basic example.\n\n## Optional focus from your prompt\n" +
+        (localPrompt ? "- " + localPrompt.replace(/\n+/g, "\n- ") : "- Add any class-specific focus points here.") +
+        "\n\nQ: What is the main idea of " +
+        localTopic +
+        "?\nA: Summarize it in one or two sentences.\n\nQ: What is a common mistake in " +
+        localTopic +
+        "?\nA: Confusing definitions or steps; verify with an example.";
+      return Promise.resolve({ ok: true, text: localText, wikiUsed: false, wikiTimedOut: false, wikiTitle: "", wikiUrl: "" });
     }
     var topicLine = (opts.topic || "").trim() || "Study topic";
     var instructions =
@@ -769,7 +781,17 @@
 
   function refineNotesWithAI(rawNotes, title, apiKey) {
     if (!apiKey || apiKey.indexOf("sk-") !== 0) {
-      return Promise.resolve({ ok: false, error: "Add an OpenAI API key in the Chat tab to refine notes." });
+      var local = String(rawNotes || "").trim();
+      if (!local) return Promise.resolve({ ok: false, error: "No note text to refine." });
+      var lines = local.split(/\n+/).map(function (x) { return x.trim(); }).filter(Boolean);
+      var bullets = lines.slice(0, 12).map(function (x) { return "- " + x; }).join("\n");
+      var localRefined =
+        "# " +
+        (title || "Refined notes") +
+        "\n\n## Overview\n" +
+        bullets +
+        "\n\n## Key terms\n- Add or clarify definitions from your class notes.\n\n## Core ideas\n- Group related points into clear sections.\n\n## Examples / applications\n- Add one worked example using your own wording.\n\n## Common confusions\n- List what is easiest to mix up and why.\n\n## Review checklist\n- [ ] I can explain this topic from memory.\n- [ ] I can answer one practice question.\n";
+      return Promise.resolve({ ok: true, text: localRefined });
     }
     var trimmed = (rawNotes || "").trim().slice(0, 28000);
     if (!trimmed) return Promise.resolve({ ok: false, error: "No note text to refine." });
@@ -866,7 +888,7 @@
 
   function generateConceptualQuiz(notesContent, docTitle, apiKey) {
     if (!apiKey || apiKey.indexOf("sk-") !== 0) {
-      return Promise.resolve({ ok: false, error: "Add an OpenAI API key for paraphrased quiz questions." });
+      return Promise.resolve({ ok: false, error: "AI paraphrasing is unavailable in local mode." });
     }
     var notes = (notesContent || "").trim().slice(0, 14000);
     if (notes.length < 40) {
@@ -904,7 +926,7 @@
 
   function generateAdvancedQuiz(notesContent, docTitle, webExtract, webSourceLabel, apiKey) {
     if (!apiKey || apiKey.indexOf("sk-") !== 0) {
-      return Promise.resolve({ ok: false, error: "Add an OpenAI API key to generate an advanced quiz." });
+      return Promise.resolve({ ok: false, error: "Advanced AI quiz is unavailable in local mode." });
     }
     var notes = (notesContent || "").trim().slice(0, 14000);
     var web = (webExtract || "").trim().slice(0, 12000);
@@ -1569,9 +1591,7 @@
     empty.hidden = hasFlash || hasContent;
     area.hidden = true;
     var std = $("#btn-start-quiz");
-    var adv = $("#btn-start-quiz-advanced");
     if (std) std.disabled = !(hasFlash || hasContent);
-    if (adv) adv.disabled = !hasContent;
   }
 
   function startQuiz() {
@@ -1595,10 +1615,7 @@
 
     function runFlashcardFallback() {
       if (!hasFlash) {
-        fb.textContent =
-          apiKey.indexOf("sk-") === 0 && hasEnoughText
-            ? quizHint
-            : "Add an OpenAI API key for paraphrased questions, or save notes that include flashcards.";
+        fb.textContent = quizHint || "Save notes that include flashcards to run local quiz mode.";
         return;
       }
       quizItems = buildQuiz(doc.flashcards);
@@ -1651,9 +1668,9 @@
     }
     var apiKey = readApiKey();
     if (apiKey.indexOf("sk-") !== 0) {
-      fb.textContent =
-        "Advanced quiz requires an OpenAI API key. Add it under Ask notes or Research notes.";
+      fb.textContent = "No API key found. Using local quiz mode instead.";
       fb.hidden = false;
+      startQuiz();
       return;
     }
     fb.hidden = false;
@@ -1913,9 +1930,6 @@
     });
 
     $("#btn-start-quiz").addEventListener("click", startQuiz);
-    $("#btn-start-quiz-advanced").addEventListener("click", function () {
-      startAdvancedQuiz();
-    });
     $("#quiz-next").addEventListener("click", quizNext);
 
     $("#openai-key").addEventListener("change", function () {

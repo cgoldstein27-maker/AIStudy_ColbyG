@@ -528,9 +528,7 @@ function renderQuizEmpty() {
   empty.hidden = hasFlash || hasContent;
   area.hidden = true;
   const std = $("#btn-start-quiz");
-  const adv = $("#btn-start-quiz-advanced");
   if (std) std.disabled = !(hasFlash || hasContent);
-  if (adv) adv.disabled = !hasContent;
 }
 
 /** Standard quiz: AI paraphrases main ideas into MC questions when a key + note text exist; else flashcard-based. */
@@ -845,9 +843,6 @@ function bindUi() {
   $("#quiz-doc-select").addEventListener("change", () => renderQuizEmpty());
 
   $("#btn-start-quiz").addEventListener("click", startQuiz);
-  $("#btn-start-quiz-advanced").addEventListener("click", () => {
-    startAdvancedQuiz();
-  });
   $("#quiz-next").addEventListener("click", quizNext);
 
   $("#openai-key")?.addEventListener("change", () => persistOpenAiKeyFromField($("#openai-key")));

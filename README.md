@@ -1,46 +1,51 @@
-# AI Study Helper
+# AI Study Helper (Study Smart)
 
-Study Smart is a browser-based study assistant that helps students turn notes into summaries, flashcards, quizzes, and Q&A sessions.
+Browser-based study assistant: turn notes into summaries, flashcards, quizzes, and Q&A.  
+**Repository:** [github.com/cgoldstein27-maker/AIStudy_ColbyG](https://github.com/cgoldstein27-maker/AIStudy_ColbyG)
 
 ## Features
 
-- Upload or paste notes and build study sets
+- Paste or upload notes (`.txt` / PDF text layers) and save study sets
 - Auto-generated summaries and flashcards
-- Spaced repetition (SM-2 style review flow)
-- Standard and advanced quiz modes
-- Ask-notes chat with optional AI help
-- Research notes generation with optional Wikipedia context
+- Spaced repetition (SM-2 style)
+- **Standard quiz** from your notes (local mode; no API key required)
+- **Ask notes** chat grounded on your sets (local retrieval; optional AI if you add a key)
+- **Research notes** with optional Wikipedia context (timeouts so slow networks don’t hang)
+- **Refine notes** restructuring without requiring a key (local fallback)
 
-## Project Structure
+## Project layout
 
-- `AI School Helper/` – main app files
-  - `index.html`
-  - `css/styles.css`
-  - `js/study-smart-bundle.js` (file:// friendly runtime)
-  - modular source files in `js/`
+All app files live in **`AI School Helper/`**:
 
-## Run Locally
+| Path | Role |
+|------|------|
+| `AI School Helper/index.html` | Entry page |
+| `AI School Helper/css/styles.css` | Styles |
+| `AI School Helper/js/study-smart-bundle.js` | Single-file build (works with `file://`) |
+| `AI School Helper/js/*.js` | Modular sources (use with a local server + `app.js` if you prefer) |
 
-From the repository root:
+## Run locally
 
 ```bash
 cd "AI School Helper"
 python3 -m http.server 8082
 ```
 
-Then open:
+Open [http://localhost:8082](http://localhost:8082) (or another port if busy).
 
-- [http://localhost:8082](http://localhost:8082)
+Double-clicking `index.html` can work for basic use; a local server is recommended for PDF.js and consistent behavior.
 
-## Notes on Accounts and Data
+## Accounts & data
 
-- Sign in uses local email + password on this browser/device.
-- Study sets and progress persist in localStorage and remain after closing tabs.
-- Data is local to this device/browser (not a cloud account).
+- Sign-in uses **email + password** stored only in this browser (hashed locally).
+- Sets, SRS progress, and weak-topic stats live in **localStorage** and persist after you close the tab.
+- This is **not** cloud sync—data stays on the device unless you use optional network AI calls.
 
-## Optional AI Setup
+## Optional AI
 
-- Add an OpenAI key in the app (`sk-...`)
-- Default API base: `https://api.openai.com/v1`
-- Optional custom OpenAI-compatible base URL can be configured in-app
+- The app runs fully in **keyless local mode**.
+- If you add an OpenAI-compatible key (hidden optional fields in the UI), you can enable model-backed answers and paraphrased quiz generation where implemented.
 
+## License
+
+See `LICENSE` in this repository when present.

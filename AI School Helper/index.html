@@ -196,19 +196,18 @@
         <div class="card">
           <h2>Quiz</h2>
           <p class="hint">
-            Standard quiz uses the AI API to infer main ideas from your notes and ask paraphrased multiple-choice questions (not copied word-for-word). Without a key, it falls back to quick questions from flashcards. Advanced quiz adds Wikipedia when possible (network). You can paste your API key here or under Ask notes / Research notes (same saved key).
+            Standard quiz uses your saved notes to build questions in local mode.
           </p>
           <label class="field narrow">
             <span>Set</span>
             <select id="quiz-doc-select"></select>
           </label>
-          <label class="field">
+          <label class="field" hidden>
             <span>OpenAI API key (optional, same as Ask notes)</span>
             <input type="password" id="quiz-openai-key" placeholder="sk-…" autocomplete="off" />
           </label>
           <div class="row">
             <button type="button" class="btn primary" id="btn-start-quiz">Standard quiz</button>
-            <button type="button" class="btn primary" id="btn-start-quiz-advanced">Advanced quiz (web + AI)</button>
           </div>
           <div id="quiz-area" class="quiz-area" hidden>
             <p class="meta" id="quiz-progress"></p>
@@ -217,7 +216,7 @@
             <p id="quiz-feedback" class="feedback" role="status"></p>
             <button type="button" class="btn" id="quiz-next" hidden>Next</button>
           </div>
-          <p id="quiz-empty" class="empty">Select a set. Standard quiz needs note text (40+ chars) and an API key for paraphrased questions, or flashcards for quick mode. Advanced quiz needs note text and a key.</p>
+          <p id="quiz-empty" class="empty">Select a set. Quiz mode works from your saved notes (note text or flashcards).</p>
         </div>
       </section>
 
@@ -241,15 +240,15 @@
               <span>Source set (optional)</span>
               <select id="chat-doc-select"></select>
             </label>
-            <label class="field">
+            <label class="field" hidden>
               <span>OpenAI API key (optional, stored only in this browser)</span>
               <input type="password" id="openai-key" placeholder="sk-…" autocomplete="off" />
             </label>
-            <label class="field">
+            <label class="field" hidden>
               <span>AI API base URL (optional)</span>
               <input type="url" id="openai-api-base" placeholder="https://api.openai.com/v1" autocomplete="off" />
             </label>
-            <p class="hint">Leave base URL empty for OpenAI. Use your school or proxy URL (must end with <code>/v1</code>) for an OpenAI-compatible gateway.</p>
+            <p class="hint">No API key required. Ask notes works in local mode using your saved sets.</p>
             <label class="field">
               <span>Message</span>
               <textarea id="chat-input" rows="3" placeholder="What is photosynthesis according to my notes?"></textarea>
