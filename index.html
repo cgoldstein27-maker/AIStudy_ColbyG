@@ -3,44 +3,421 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NHL Top 5 Scoring Leaders</title>
+  <title>Study Smart Showcase</title>
   <style>
-    body { margin: 0; font-family: Arial, sans-serif; background: #0e2f44; color: #f1f2f3; min-height: 100vh; display:flex; align-items:center; justify-content:center; }
-    .card { width:min(95vw, 640px); background:#123b5c; border-radius:12px; padding:18px; box-shadow:0 8px 24px rgba(0,0,0,0.35); }
-    h1 { margin:0 0 14px; font-size:1.7rem; text-align:center; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { padding:10px 8px; text-align:left; }
-    th { color:#9fc8eb; border-bottom:1px solid #2d5979; font-size:.86rem; text-transform:uppercase; letter-spacing:.04em; }
-    tr:nth-child(odd){background:rgba(255,255,255,.04)}
-    .refresh{margin-top:12px;width:100%;padding:10px;border:0;border-radius:8px;cursor:pointer;background:#1b6baf;color:#fff;font-weight:700}
-    .refresh:hover{background:#2683ff}
+    :root {
+      --bg: #050816;
+      --panel: rgba(255, 255, 255, 0.07);
+      --panel-strong: rgba(255, 255, 255, 0.12);
+      --text: #f2f6ff;
+      --muted: #b8c7ea;
+      --accent-1: #7f7bff;
+      --accent-2: #35d3ff;
+      --accent-3: #7df7bf;
+      --good: #8df5a4;
+      --warn: #ffcc75;
+      --danger: #ff8e8e;
+      --max: 1140px;
+      --radius: 22px;
+      --shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", "SF Pro Text", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 5% -5%, #2d3b8a 0, transparent 32%),
+        radial-gradient(circle at 95% 10%, #1a7aa1 0, transparent 30%),
+        radial-gradient(circle at 60% 120%, #1f7c66 0, transparent 35%),
+        var(--bg);
+      line-height: 1.55;
+    }
+
+    .page {
+      width: min(var(--max), 92vw);
+      margin: 0 auto;
+      padding: 2.75rem 0 4rem;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: calc(var(--radius) + 4px);
+      background: linear-gradient(155deg, rgba(127, 123, 255, 0.2), rgba(53, 211, 255, 0.08) 45%, rgba(125, 247, 191, 0.08));
+      border: 1px solid var(--panel-strong);
+      box-shadow: var(--shadow);
+      padding: clamp(1.5rem, 4vw, 3rem);
+    }
+
+    .kicker {
+      display: inline-block;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: var(--muted);
+      font-size: 0.92rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0.8rem 0 0.8rem;
+      font-size: clamp(2rem, 4.6vw, 4rem);
+      line-height: 1.06;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(1.03rem, 1.95vw, 1.28rem);
+      max-width: 62ch;
+    }
+
+    .cta-row {
+      margin-top: 1.3rem;
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 0;
+      text-decoration: none;
+      color: #101827;
+      background: linear-gradient(120deg, var(--accent-2), var(--accent-3));
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .btn.alt {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .meta {
+      margin-top: 1rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    section {
+      margin-top: 1.45rem;
+      background: var(--panel);
+      border: 1px solid var(--panel-strong);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: clamp(1.15rem, 2.5vw, 2rem);
+    }
+
+    h2 {
+      margin: 0 0 0.7rem;
+      font-size: clamp(1.3rem, 2.5vw, 2rem);
+    }
+
+    .grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      margin-top: 1rem;
+    }
+
+    .card {
+      background: rgba(8, 19, 46, 0.67);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 16px;
+      padding: 1rem;
+    }
+
+    .card h3 {
+      margin: 0 0 0.5rem;
+      font-size: 1.06rem;
+    }
+
+    .muted { color: var(--muted); }
+
+    .screens {
+      display: grid;
+      gap: 0.9rem;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      margin-top: 1rem;
+    }
+
+    figure {
+      margin: 0;
+      background: rgba(1, 10, 29, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 14px;
+      padding: 0.75rem;
+    }
+
+    figcaption {
+      margin-top: 0.55rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .screenshot {
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      display: block;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #08142d;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 0.8rem;
+    }
+
+    .tag {
+      border-radius: 999px;
+      font-size: 0.9rem;
+      color: #eaf0ff;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 0.35rem 0.65rem;
+      white-space: nowrap;
+    }
+
+    .demo-box {
+      margin-top: 1rem;
+      border-radius: 16px;
+      background: rgba(0, 0, 0, 0.33);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      padding: 1rem;
+      overflow: hidden;
+    }
+
+    .ticker {
+      display: flex;
+      width: max-content;
+      gap: 1rem;
+      animation: drift 22s linear infinite;
+    }
+
+    .chip {
+      background: #0c244f;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #d9e7ff;
+      padding: 0.55rem 0.8rem;
+      border-radius: 999px;
+      font-size: 0.95rem;
+    }
+
+    @keyframes drift {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    .footer {
+      margin-top: 1.5rem;
+      color: var(--muted);
+      text-align: center;
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 640px) {
+      .page { width: 94vw; }
+      section { padding: 1rem; }
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>NHL Top-5 Points Leaders</h1>
-    <table>
-      <thead><tr><th>#</th><th>Player</th><th>Team</th><th>GP</th><th>G</th><th>A</th><th>P</th></tr></thead>
-      <tbody id="leaders"></tbody>
-    </table>
-    <button class="refresh" onclick="loadLeaders()">Load/Refresh</button>
-  </div>
+  <main class="page">
+    <header class="hero">
+      <span class="kicker">AI School Helper • Project Showcase</span>
+      <h1>Study Smart: A local-first AI study workspace</h1>
+      <p>
+        Study Smart turns class notes into structured summaries, flashcards, quizzes, and weak-topic insights.
+        It blends browser-native storage, spaced repetition logic, and optional AI/web augmentation into one streamlined learning workflow.
+      </p>
+      <div class="cta-row">
+        <a class="btn" href="../AI%20School%20Helper/index.html">Open Live Tool</a>
+        <a class="btn alt" href="#highlights">See Features</a>
+      </div>
+      <div class="meta">
+        <span><strong>Audience:</strong> Students building durable memory</span>
+        <span><strong>Format:</strong> One tab workflow with local persistence</span>
+        <span><strong>Design Goal:</strong> Fast, clear, and scale-friendly</span>
+      </div>
+    </header>
+
+    <section id="highlights">
+      <h2>What this project does well</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>Library + note processing</h3>
+          <p class="muted">Ingests notes and chunks them for summary creation, flashcard generation, and retrieval-assisted responses.</p>
+        </article>
+        <article class="card">
+          <h3>SRS practice loop</h3>
+          <p class="muted">Implements spaced repetition grading (Again, Hard, Good, Easy) for long-term retention over cramming.</p>
+        </article>
+        <article class="card">
+          <h3>Adaptive quiz + weak topics</h3>
+          <p class="muted">Tracks mistakes and confidence patterns to surface topics that need targeted review.</p>
+        </article>
+        <article class="card">
+          <h3>AI + web support</h3>
+          <p class="muted">Uses OpenAI and Wikipedia/Tavily context when needed, while prioritizing the student’s own notes.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Output-focused screenshots</h2>
+      <p class="muted">These framed captures represent the main user outputs this app is optimized for: generated cards, SRS review, and weak-topic analytics.</p>
+      <div class="screens">
+        <figure>
+          <svg class="screenshot" viewBox="0 0 960 540" role="img" aria-label="Study Smart notes and flashcard output view">
+            <defs>
+              <linearGradient id="bgA" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#1a336f" />
+                <stop offset="1" stop-color="#13264f" />
+              </linearGradient>
+            </defs>
+            <rect width="960" height="540" fill="url(#bgA)"/>
+            <rect x="24" y="20" width="912" height="46" rx="10" fill="#0a1633"/>
+            <rect x="42" y="32" width="190" height="20" rx="8" fill="#3c74df"/>
+            <rect x="30" y="82" width="360" height="430" rx="14" fill="#0a1b3d" stroke="#365898"/>
+            <rect x="410" y="82" width="520" height="205" rx="14" fill="#0a1b3d" stroke="#365898"/>
+            <rect x="410" y="304" width="520" height="208" rx="14" fill="#0a1b3d" stroke="#365898"/>
+            <rect x="50" y="110" width="220" height="16" rx="8" fill="#67d4ff"/>
+            <rect x="50" y="136" width="302" height="10" rx="5" fill="#89a4db"/>
+            <rect x="50" y="154" width="288" height="10" rx="5" fill="#89a4db"/>
+            <rect x="50" y="172" width="264" height="10" rx="5" fill="#89a4db"/>
+            <rect x="50" y="206" width="290" height="208" rx="10" fill="#0f2c61"/>
+            <rect x="430" y="110" width="210" height="16" rx="8" fill="#7df7bf"/>
+            <rect x="430" y="140" width="470" height="10" rx="5" fill="#89a4db"/>
+            <rect x="430" y="158" width="430" height="10" rx="5" fill="#89a4db"/>
+            <rect x="430" y="176" width="390" height="10" rx="5" fill="#89a4db"/>
+            <rect x="430" y="330" width="160" height="16" rx="8" fill="#ffd089"/>
+            <rect x="430" y="362" width="468" height="130" rx="10" fill="#13356f"/>
+            <circle cx="844" cy="118" r="9" fill="#8df5a4"/>
+            <circle cx="872" cy="118" r="9" fill="#ffcc75"/>
+            <circle cx="900" cy="118" r="9" fill="#ff8e8e"/>
+          </svg>
+          <figcaption>Library + generated summary + flashcard preview output.</figcaption>
+        </figure>
+        <figure>
+          <svg class="screenshot" viewBox="0 0 960 540" role="img" aria-label="Study Smart spaced repetition output view">
+            <defs>
+              <linearGradient id="bgB" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#0a2f2d" />
+                <stop offset="1" stop-color="#10274f" />
+              </linearGradient>
+            </defs>
+            <rect width="960" height="540" fill="url(#bgB)"/>
+            <rect x="100" y="48" width="760" height="54" rx="12" fill="#051729"/>
+            <rect x="122" y="66" width="220" height="18" rx="9" fill="#35d3ff"/>
+            <rect x="150" y="130" width="660" height="330" rx="20" fill="#071f3b" stroke="#3387b5" stroke-width="2"/>
+            <rect x="182" y="170" width="260" height="16" rx="8" fill="#7df7bf"/>
+            <rect x="182" y="196" width="590" height="12" rx="6" fill="#8da3c8"/>
+            <rect x="182" y="216" width="550" height="12" rx="6" fill="#8da3c8"/>
+            <rect x="182" y="236" width="500" height="12" rx="6" fill="#8da3c8"/>
+            <rect x="182" y="286" width="190" height="16" rx="8" fill="#ffd089"/>
+            <rect x="182" y="312" width="420" height="12" rx="6" fill="#8da3c8"/>
+            <rect x="182" y="332" width="380" height="12" rx="6" fill="#8da3c8"/>
+            <rect x="180" y="384" width="130" height="44" rx="10" fill="#7b2a2a"/>
+            <rect x="330" y="384" width="130" height="44" rx="10" fill="#6a501f"/>
+            <rect x="480" y="384" width="130" height="44" rx="10" fill="#1c5c4f"/>
+            <rect x="630" y="384" width="130" height="44" rx="10" fill="#2f6296"/>
+          </svg>
+          <figcaption>SRS card review flow with confidence ratings and progression.</figcaption>
+        </figure>
+        <figure>
+          <svg class="screenshot" viewBox="0 0 960 540" role="img" aria-label="Study Smart weak topic analytics output view">
+            <defs>
+              <linearGradient id="bgC" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#2e1e5f" />
+                <stop offset="1" stop-color="#0f2e45" />
+              </linearGradient>
+            </defs>
+            <rect width="960" height="540" fill="url(#bgC)"/>
+            <rect x="60" y="40" width="840" height="64" rx="12" fill="#0a1632"/>
+            <rect x="90" y="64" width="250" height="16" rx="8" fill="#a888ff"/>
+            <rect x="95" y="130" width="770" height="360" rx="16" fill="#071933" stroke="#6f61cc"/>
+            <rect x="130" y="170" width="310" height="26" rx="8" fill="#3e2f87"/>
+            <rect x="460" y="170" width="210" height="26" rx="8" fill="#7c5de6"/>
+            <rect x="130" y="220" width="530" height="20" rx="8" fill="#375fb5"/>
+            <rect x="130" y="260" width="620" height="20" rx="8" fill="#4b76d3"/>
+            <rect x="130" y="300" width="470" height="20" rx="8" fill="#5f8ff0"/>
+            <rect x="130" y="340" width="380" height="20" rx="8" fill="#78a6ff"/>
+            <rect x="130" y="380" width="290" height="20" rx="8" fill="#9cb9ff"/>
+            <circle cx="810" cy="228" r="14" fill="#ff8e8e"/>
+            <circle cx="810" cy="268" r="14" fill="#ffcc75"/>
+            <circle cx="810" cy="308" r="14" fill="#8df5a4"/>
+          </svg>
+          <figcaption>Weak-topic tracking to identify where re-study effort should go.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>Tech stack and references</h2>
+      <p class="muted">
+        This implementation intentionally stays lightweight while integrating modern learning workflows.
+        It relies on browser-native capabilities first, then optional API services for higher-quality generation.
+      </p>
+      <div class="tags">
+        <span class="tag">Vanilla HTML/CSS/JS</span>
+        <span class="tag">LocalStorage persistence</span>
+        <span class="tag">SM-2 spaced repetition logic</span>
+        <span class="tag">OpenAI Chat Completions API</span>
+        <span class="tag">Wikipedia retrieval</span>
+        <span class="tag">Tavily web search API</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Live motion demo</h2>
+      <p class="muted">A compact animation that mirrors how Study Smart cycles through notes, memory checks, and mastery milestones.</p>
+      <div class="demo-box">
+        <div class="ticker" id="ticker"></div>
+      </div>
+    </section>
+
+    <p class="footer">
+      Built as a single-file scroll page and ready to be repurposed into an enhanced project README narrative.
+    </p>
+  </main>
+
   <script>
-    const sampleLeaders = [
-      {rank:1,name:'Connor McDavid',team:'EDM',gp:79,g:64,a:102,p:166},
-      {rank:2,name:'Leon Draisaitl',team:'EDM',gp:78,g:55,a:81,p:136},
-      {rank:3,name:'Nathan MacKinnon',team:'COL',gp:75,g:42,a:78,p:120},
-      {rank:4,name:'Auston Matthews',team:'TOR',gp:82,g:69,a:42,p:111},
-      {rank:5,name:'Mikko Rantanen',team:'COL',gp:80,g:46,a:58,p:104}
-    ];
-    function loadLeaders(){
-      const tbody=document.getElementById('leaders');
-      tbody.innerHTML='';
-      sampleLeaders.forEach(p=>{
-        tbody.insertAdjacentHTML('beforeend',`<tr><td>${p.rank}</td><td>${p.name}</td><td>${p.team}</td><td>${p.gp}</td><td>${p.g}</td><td>${p.a}</td><td>${p.p}</td></tr>`);
+    (function () {
+      const milestones = [
+        "Upload notes",
+        "Auto-summary built",
+        "Flashcards generated",
+        "SRS session started",
+        "Quiz completed",
+        "Weak topics detected",
+        "Review plan updated",
+        "Memory retention improved"
+      ];
+      const holder = document.getElementById("ticker");
+      const chips = milestones.concat(milestones).map((label) => {
+        const span = document.createElement("span");
+        span.className = "chip";
+        span.textContent = label;
+        return span;
       });
-    }
-    loadLeaders();
+      chips.forEach((chip) => holder.appendChild(chip));
+    })();
   </script>
 </body>
 </html>
