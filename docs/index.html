@@ -163,6 +163,16 @@
       margin-top: 1rem;
     }
 
+    .highlights-block + .highlights-block {
+      margin-top: 1.3rem;
+    }
+
+    .highlights-subtitle {
+      margin: 0;
+      font-size: 1.06rem;
+      letter-spacing: 0.01em;
+    }
+
     .card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -337,23 +347,72 @@
 
     <section id="highlights">
       <h2>What this project does well</h2>
-      <div class="grid">
-        <article class="card">
-          <h3>Library + note processing</h3>
-          <p class="muted">Ingests notes and chunks them for summary creation, flashcard generation, and retrieval-assisted responses.</p>
-        </article>
-        <article class="card">
-          <h3>SRS practice loop</h3>
-          <p class="muted">Implements spaced repetition grading (Again, Hard, Good, Easy) for long-term retention over cramming.</p>
-        </article>
-        <article class="card">
-          <h3>Adaptive quiz + weak topics</h3>
-          <p class="muted">Tracks mistakes and confidence patterns to surface topics that need targeted review.</p>
-        </article>
-        <article class="card">
-          <h3>AI + web support</h3>
-          <p class="muted">Uses OpenAI and Wikipedia/Tavily context when needed, while prioritizing the student’s own notes.</p>
-        </article>
+      <p class="muted">Study Smart is built to move students from passive review to active mastery with a clear, repeatable loop.</p>
+
+      <div class="highlights-block">
+        <h3 class="highlights-subtitle">Core learning workflow strengths</h3>
+        <div class="grid">
+          <article class="card">
+            <h3>Library + note processing</h3>
+            <p class="muted">Ingests text or PDF-backed content, then chunks material for summaries, flashcards, and context-aware Q&A.</p>
+          </article>
+          <article class="card">
+            <h3>Summary-to-practice pipeline</h3>
+            <p class="muted">Turns long notes into concise study outputs so students can shift from reading to doing in the same session.</p>
+          </article>
+          <article class="card">
+            <h3>SRS retention loop</h3>
+            <p class="muted">Implements spaced repetition scoring (Again/Hard/Good/Easy) to improve long-term memory instead of short-term cramming.</p>
+          </article>
+          <article class="card">
+            <h3>Adaptive quiz feedback</h3>
+            <p class="muted">Uses quiz outcomes to reinforce understanding, identify misconceptions, and drive the next review cycle.</p>
+          </article>
+        </div>
+      </div>
+
+      <div class="highlights-block">
+        <h3 class="highlights-subtitle">AI and retrieval intelligence</h3>
+        <div class="grid">
+          <article class="card">
+            <h3>Notes-first retrieval</h3>
+            <p class="muted">Prioritizes the student’s own material before external data, preserving class alignment and teacher-specific vocabulary.</p>
+          </article>
+          <article class="card">
+            <h3>Optional web augmentation</h3>
+            <p class="muted">Adds Wikipedia and Tavily-supported context when notes are thin, outdated, or missing supporting explanations.</p>
+          </article>
+          <article class="card">
+            <h3>Multi-mode AI outputs</h3>
+            <p class="muted">Supports tutor answers, note refinement, and quiz generation with one consistent interface and shared context.</p>
+          </article>
+          <article class="card">
+            <h3>Local key storage model</h3>
+            <p class="muted">API keys stay in browser storage on-device, keeping setup simple while avoiding accidental hardcoded credentials.</p>
+          </article>
+        </div>
+      </div>
+
+      <div class="highlights-block">
+        <h3 class="highlights-subtitle">Product and usability wins</h3>
+        <div class="grid">
+          <article class="card">
+            <h3>Local-first persistence</h3>
+            <p class="muted">Works without a backend account system by storing user progress, docs, and study state directly in the browser.</p>
+          </article>
+          <article class="card">
+            <h3>Single-page student UX</h3>
+            <p class="muted">Keeps the full flow in one app shell (library, study, quiz, insights, chat), minimizing context switching.</p>
+          </article>
+          <article class="card">
+            <h3>Insight-driven review planning</h3>
+            <p class="muted">Weak-topic tracking gives students a concrete “what to study next” signal instead of generic recommendations.</p>
+          </article>
+          <article class="card">
+            <h3>Classroom-ready architecture</h3>
+            <p class="muted">Simple deploy model, lightweight dependencies, and clear feature boundaries make it practical for school demos and iteration.</p>
+          </article>
+        </div>
       </div>
     </section>
 
