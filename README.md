@@ -46,6 +46,17 @@ Double-clicking `index.html` can work for basic use; a local server is recommend
 - The app runs fully in **keyless local mode**.
 - If you add an OpenAI-compatible key (hidden optional fields in the UI), you can enable model-backed answers and paraphrased quiz generation where implemented.
 
+## Screenshots
+
+### Sign in
+![Study Smart sign-in screen](AI%20School%20Helper/assets/sign-in-screen.png)
+
+### Quiz
+![Study Smart quiz screen](AI%20School%20Helper/assets/quiz-screen.png)
+
+### Ask notes
+![Study Smart ask-notes screen](AI%20School%20Helper/assets/ask-notes-screen.png)
+
 ## License
 
 See `LICENSE` in this repository when present.
