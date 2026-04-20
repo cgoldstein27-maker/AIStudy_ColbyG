@@ -6,20 +6,20 @@
   <title>Study Smart Showcase</title>
   <style>
     :root {
-      --bg: #050816;
-      --panel: rgba(255, 255, 255, 0.07);
-      --panel-strong: rgba(255, 255, 255, 0.12);
-      --text: #f2f6ff;
-      --muted: #b8c7ea;
-      --accent-1: #7f7bff;
-      --accent-2: #35d3ff;
-      --accent-3: #7df7bf;
-      --good: #8df5a4;
-      --warn: #ffcc75;
-      --danger: #ff8e8e;
+      --bg: #ffffff;
+      --panel: #ffffff;
+      --panel-strong: #d7e4ff;
+      --text: #16213f;
+      --muted: #5f6f92;
+      --accent-1: #5964ff;
+      --accent-2: #2f8de9;
+      --accent-3: #1fbf9a;
+      --good: #2c9e65;
+      --warn: #c9871f;
+      --danger: #cc4f4f;
       --max: 1140px;
       --radius: 22px;
-      --shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+      --shadow: 0 14px 36px rgba(30, 62, 116, 0.13);
     }
 
     * { box-sizing: border-box; }
@@ -31,9 +31,9 @@
       font-family: "Inter", "Segoe UI", "SF Pro Text", system-ui, sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at 5% -5%, #2d3b8a 0, transparent 32%),
-        radial-gradient(circle at 95% 10%, #1a7aa1 0, transparent 30%),
-        radial-gradient(circle at 60% 120%, #1f7c66 0, transparent 35%),
+        radial-gradient(circle at 8% -10%, rgba(104, 118, 255, 0.2) 0, transparent 34%),
+        radial-gradient(circle at 94% 10%, rgba(70, 180, 214, 0.16) 0, transparent 30%),
+        radial-gradient(circle at 65% 115%, rgba(89, 200, 158, 0.16) 0, transparent 36%),
         var(--bg);
       line-height: 1.55;
     }
@@ -48,8 +48,8 @@
       position: relative;
       overflow: hidden;
       border-radius: calc(var(--radius) + 4px);
-      background: linear-gradient(155deg, rgba(127, 123, 255, 0.2), rgba(53, 211, 255, 0.08) 45%, rgba(125, 247, 191, 0.08));
-      border: 1px solid var(--panel-strong);
+      background: linear-gradient(155deg, #f5f9ff, #eef5ff 48%, #ecfffa);
+      border: 1px solid #d6e2fb;
       box-shadow: var(--shadow);
       padding: clamp(1.5rem, 4vw, 3rem);
     }
@@ -58,9 +58,9 @@
       display: inline-block;
       padding: 0.35rem 0.75rem;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      color: var(--muted);
+      background: #ffffff;
+      border: 1px solid #d4e0f7;
+      color: #516082;
       font-size: 0.92rem;
       letter-spacing: 0.04em;
       text-transform: uppercase;
@@ -89,18 +89,20 @@
     .btn {
       border: 0;
       text-decoration: none;
-      color: #101827;
-      background: linear-gradient(120deg, var(--accent-2), var(--accent-3));
+      color: #ffffff;
+      background: linear-gradient(120deg, var(--accent-2), var(--accent-1));
       padding: 0.75rem 1rem;
       border-radius: 12px;
       font-weight: 700;
       letter-spacing: 0.01em;
+      box-shadow: 0 8px 18px rgba(49, 98, 195, 0.25);
     }
 
     .btn.alt {
-      background: rgba(255, 255, 255, 0.12);
-      color: var(--text);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: #ffffff;
+      color: #213154;
+      border: 1px solid #cad8f2;
+      box-shadow: none;
     }
 
     .meta {
@@ -115,7 +117,7 @@
     section {
       margin-top: 1.45rem;
       background: var(--panel);
-      border: 1px solid var(--panel-strong);
+      border: 1px solid #dce7fb;
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       padding: clamp(1.15rem, 2.5vw, 2rem);
@@ -134,8 +136,8 @@
     }
 
     .card {
-      background: rgba(8, 19, 46, 0.67);
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: #f8fbff;
+      border: 1px solid #dce7f8;
       border-radius: 16px;
       padding: 1rem;
     }
@@ -156,8 +158,8 @@
 
     figure {
       margin: 0;
-      background: rgba(1, 10, 29, 0.78);
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: #f7faff;
+      border: 1px solid #d7e3f7;
       border-radius: 14px;
       padding: 0.75rem;
     }
@@ -173,8 +175,8 @@
       height: auto;
       border-radius: 10px;
       display: block;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background: #08142d;
+      border: 1px solid #d7e3f7;
+      background: #edf4ff;
     }
 
     .tags {
@@ -187,9 +189,9 @@
     .tag {
       border-radius: 999px;
       font-size: 0.9rem;
-      color: #eaf0ff;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #25385f;
+      background: #eef3ff;
+      border: 1px solid #d4e1fb;
       padding: 0.35rem 0.65rem;
       white-space: nowrap;
     }
@@ -197,8 +199,8 @@
     .demo-box {
       margin-top: 1rem;
       border-radius: 16px;
-      background: rgba(0, 0, 0, 0.33);
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: #f4f8ff;
+      border: 1px solid #d9e5fa;
       padding: 1rem;
       overflow: hidden;
     }
@@ -211,12 +213,13 @@
     }
 
     .chip {
-      background: #0c244f;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: #d9e7ff;
+      background: #ffffff;
+      border: 1px solid #d4e2fc;
+      color: #2c3e68;
       padding: 0.55rem 0.8rem;
       border-radius: 999px;
       font-size: 0.95rem;
+      box-shadow: 0 4px 12px rgba(41, 77, 139, 0.12);
     }
 
     @keyframes drift {
