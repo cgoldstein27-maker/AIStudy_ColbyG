@@ -6,6 +6,7 @@
   <title>Study Smart Showcase</title>
   <style>
     :root {
+      color-scheme: light;
       --bg: #ffffff;
       --panel: #ffffff;
       --panel-strong: #d7e4ff;
@@ -20,6 +21,33 @@
       --max: 1140px;
       --radius: 22px;
       --shadow: 0 14px 36px rgba(30, 62, 116, 0.13);
+      --hero-bg: linear-gradient(155deg, #f5f9ff, #eef5ff 48%, #ecfffa);
+      --hero-border: #d6e2fb;
+      --kicker-bg: #ffffff;
+      --kicker-border: #d4e0f7;
+      --kicker-text: #516082;
+      --btn-text: #ffffff;
+      --btn-bg: linear-gradient(120deg, var(--accent-2), var(--accent-1));
+      --btn-shadow: 0 8px 18px rgba(49, 98, 195, 0.25);
+      --btn-alt-bg: #ffffff;
+      --btn-alt-text: #213154;
+      --btn-alt-border: #cad8f2;
+      --section-border: #dce7fb;
+      --card-bg: #f8fbff;
+      --card-border: #dce7f8;
+      --figure-bg: #f7faff;
+      --figure-border: #d7e3f7;
+      --screenshot-bg: #edf4ff;
+      --screenshot-border: #d7e3f7;
+      --tag-bg: #eef3ff;
+      --tag-text: #25385f;
+      --tag-border: #d4e1fb;
+      --demo-bg: #f4f8ff;
+      --demo-border: #d9e5fa;
+      --chip-bg: #ffffff;
+      --chip-border: #d4e2fc;
+      --chip-text: #2c3e68;
+      --chip-shadow: 0 4px 12px rgba(41, 77, 139, 0.12);
     }
 
     * { box-sizing: border-box; }
@@ -48,8 +76,8 @@
       position: relative;
       overflow: hidden;
       border-radius: calc(var(--radius) + 4px);
-      background: linear-gradient(155deg, #f5f9ff, #eef5ff 48%, #ecfffa);
-      border: 1px solid #d6e2fb;
+      background: var(--hero-bg);
+      border: 1px solid var(--hero-border);
       box-shadow: var(--shadow);
       padding: clamp(1.5rem, 4vw, 3rem);
     }
@@ -58,9 +86,9 @@
       display: inline-block;
       padding: 0.35rem 0.75rem;
       border-radius: 999px;
-      background: #ffffff;
-      border: 1px solid #d4e0f7;
-      color: #516082;
+      background: var(--kicker-bg);
+      border: 1px solid var(--kicker-border);
+      color: var(--kicker-text);
       font-size: 0.92rem;
       letter-spacing: 0.04em;
       text-transform: uppercase;
@@ -89,19 +117,19 @@
     .btn {
       border: 0;
       text-decoration: none;
-      color: #ffffff;
-      background: linear-gradient(120deg, var(--accent-2), var(--accent-1));
+      color: var(--btn-text);
+      background: var(--btn-bg);
       padding: 0.75rem 1rem;
       border-radius: 12px;
       font-weight: 700;
       letter-spacing: 0.01em;
-      box-shadow: 0 8px 18px rgba(49, 98, 195, 0.25);
+      box-shadow: var(--btn-shadow);
     }
 
     .btn.alt {
-      background: #ffffff;
-      color: #213154;
-      border: 1px solid #cad8f2;
+      background: var(--btn-alt-bg);
+      color: var(--btn-alt-text);
+      border: 1px solid var(--btn-alt-border);
       box-shadow: none;
     }
 
@@ -117,7 +145,7 @@
     section {
       margin-top: 1.45rem;
       background: var(--panel);
-      border: 1px solid #dce7fb;
+      border: 1px solid var(--section-border);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       padding: clamp(1.15rem, 2.5vw, 2rem);
@@ -136,8 +164,8 @@
     }
 
     .card {
-      background: #f8fbff;
-      border: 1px solid #dce7f8;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
       border-radius: 16px;
       padding: 1rem;
     }
@@ -158,8 +186,8 @@
 
     figure {
       margin: 0;
-      background: #f7faff;
-      border: 1px solid #d7e3f7;
+      background: var(--figure-bg);
+      border: 1px solid var(--figure-border);
       border-radius: 14px;
       padding: 0.75rem;
     }
@@ -175,8 +203,8 @@
       height: auto;
       border-radius: 10px;
       display: block;
-      border: 1px solid #d7e3f7;
-      background: #edf4ff;
+      border: 1px solid var(--screenshot-border);
+      background: var(--screenshot-bg);
     }
 
     .tags {
@@ -189,9 +217,9 @@
     .tag {
       border-radius: 999px;
       font-size: 0.9rem;
-      color: #25385f;
-      background: #eef3ff;
-      border: 1px solid #d4e1fb;
+      color: var(--tag-text);
+      background: var(--tag-bg);
+      border: 1px solid var(--tag-border);
       padding: 0.35rem 0.65rem;
       white-space: nowrap;
     }
@@ -199,8 +227,8 @@
     .demo-box {
       margin-top: 1rem;
       border-radius: 16px;
-      background: #f4f8ff;
-      border: 1px solid #d9e5fa;
+      background: var(--demo-bg);
+      border: 1px solid var(--demo-border);
       padding: 1rem;
       overflow: hidden;
     }
@@ -213,13 +241,60 @@
     }
 
     .chip {
-      background: #ffffff;
-      border: 1px solid #d4e2fc;
-      color: #2c3e68;
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
+      color: var(--chip-text);
       padding: 0.55rem 0.8rem;
       border-radius: 999px;
       font-size: 0.95rem;
-      box-shadow: 0 4px 12px rgba(41, 77, 139, 0.12);
+      box-shadow: var(--chip-shadow);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --bg: #050816;
+        --panel: rgba(255, 255, 255, 0.07);
+        --panel-strong: rgba(255, 255, 255, 0.12);
+        --text: #f2f6ff;
+        --muted: #b8c7ea;
+        --shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+        --hero-bg: linear-gradient(155deg, rgba(127, 123, 255, 0.2), rgba(53, 211, 255, 0.08) 45%, rgba(125, 247, 191, 0.08));
+        --hero-border: var(--panel-strong);
+        --kicker-bg: rgba(255, 255, 255, 0.1);
+        --kicker-border: rgba(255, 255, 255, 0.16);
+        --kicker-text: var(--muted);
+        --btn-text: #101827;
+        --btn-bg: linear-gradient(120deg, var(--accent-2), var(--accent-3));
+        --btn-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+        --btn-alt-bg: rgba(255, 255, 255, 0.12);
+        --btn-alt-text: var(--text);
+        --btn-alt-border: rgba(255, 255, 255, 0.2);
+        --section-border: var(--panel-strong);
+        --card-bg: rgba(8, 19, 46, 0.67);
+        --card-border: rgba(255, 255, 255, 0.14);
+        --figure-bg: rgba(1, 10, 29, 0.78);
+        --figure-border: rgba(255, 255, 255, 0.14);
+        --screenshot-bg: #08142d;
+        --screenshot-border: rgba(255, 255, 255, 0.12);
+        --tag-bg: rgba(255, 255, 255, 0.1);
+        --tag-text: #eaf0ff;
+        --tag-border: rgba(255, 255, 255, 0.2);
+        --demo-bg: rgba(0, 0, 0, 0.33);
+        --demo-border: rgba(255, 255, 255, 0.14);
+        --chip-bg: #0c244f;
+        --chip-border: rgba(255, 255, 255, 0.2);
+        --chip-text: #d9e7ff;
+        --chip-shadow: none;
+      }
+
+      body {
+        background:
+          radial-gradient(circle at 5% -5%, #2d3b8a 0, transparent 32%),
+          radial-gradient(circle at 95% 10%, #1a7aa1 0, transparent 30%),
+          radial-gradient(circle at 60% 120%, #1f7c66 0, transparent 35%),
+          var(--bg);
+      }
     }
 
     @keyframes drift {
