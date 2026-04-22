@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study Smart | AI Features</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --text: #1e293b;
+      --muted: #5b6473;
+      --border: #dbe3ef;
+      --accent: #2563eb;
+      --max: 900px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .page {
+      width: min(var(--max), 92vw);
+      margin: 0 auto;
+      padding: 2rem 0 3rem;
+    }
+    .back {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    h1 {
+      margin: 1rem 0 0.55rem;
+      font-size: clamp(1.7rem, 4vw, 2.4rem);
+    }
+    .muted { color: var(--muted); }
+    .grid {
+      display: grid;
+      gap: 0.9rem;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      margin-top: 1rem;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0.95rem;
+    }
+    .card h3 {
+      margin: 0 0 0.45rem;
+      font-size: 1.03rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <a class="back" href="./index.html#highlights">← Back to main page</a>
+    <h1>AI features</h1>
+    <p class="muted">AI is used to support studying, not replace it. The app keeps notes and practice at the center.</p>
+    <div class="grid">
+      <article class="card">
+        <h3>Notes-first answers</h3>
+        <p class="muted">Responses prioritize your own uploaded class material before outside information.</p>
+      </article>
+      <article class="card">
+        <h3>Optional web context</h3>
+        <p class="muted">If notes are missing detail, you can pull in Wikipedia/Tavily context.</p>
+      </article>
+      <article class="card">
+        <h3>Multiple output modes</h3>
+        <p class="muted">One interface can answer questions, clean notes, and generate practice prompts.</p>
+      </article>
+      <article class="card">
+        <h3>Local key storage</h3>
+        <p class="muted">API keys stay in browser storage on your device instead of being hardcoded.</p>
+      </article>
+    </div>
+  </main>
+</body>
+</html>
