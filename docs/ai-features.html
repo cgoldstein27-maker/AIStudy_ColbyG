@@ -53,31 +53,84 @@
       margin: 0 0 0.45rem;
       font-size: 1.03rem;
     }
+    .section {
+      margin-top: 1rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem;
+    }
+    .section h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.15rem;
+    }
+    .section p {
+      margin: 0;
+    }
+    .section + .section {
+      margin-top: 0.85rem;
+    }
   </style>
 </head>
 <body>
   <main class="page">
     <a class="back" href="./index.html#highlights">← Back to main page</a>
     <h1>AI features</h1>
-    <p class="muted">AI is used to support studying, not replace it. The app keeps notes and practice at the center.</p>
+    <p class="muted">AI here is a support tool: it helps with understanding and practice, but your notes still stay central.</p>
     <div class="grid">
       <article class="card">
-        <h3>Notes-first answers</h3>
-        <p class="muted">Responses prioritize your own uploaded class material before outside information.</p>
+        <h3>Notes-first retrieval</h3>
+        <p class="muted">Answers start from your uploaded class material.</p>
       </article>
       <article class="card">
-        <h3>Optional web context</h3>
-        <p class="muted">If notes are missing detail, you can pull in Wikipedia/Tavily context.</p>
+        <h3>Optional web fallback</h3>
+        <p class="muted">External context is used only when notes are missing detail.</p>
       </article>
       <article class="card">
-        <h3>Multiple output modes</h3>
-        <p class="muted">One interface can answer questions, clean notes, and generate practice prompts.</p>
+        <h3>Multi-mode outputs</h3>
+        <p class="muted">One interface handles Q&amp;A, note cleanup, and quiz generation.</p>
       </article>
       <article class="card">
         <h3>Local key storage</h3>
-        <p class="muted">API keys stay in browser storage on your device instead of being hardcoded.</p>
+        <p class="muted">API keys stay in browser storage on-device.</p>
       </article>
     </div>
+
+    <section class="section">
+      <h2>Design principle: support, not autopilot</h2>
+      <p class="muted">
+        The goal is to speed up studying without removing student thinking. AI is used to summarize, explain, and
+        generate practice prompts, but students still control what gets accepted, edited, and reviewed. This keeps
+        the learning process active instead of passive.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>How retrieval is prioritized</h2>
+      <p class="muted">
+        When possible, answers are grounded in your own notes first. That matters for class-specific vocabulary,
+        teacher expectations, and test wording. If your notes are incomplete, the app can pull supplemental context
+        from web sources, but the default behavior is still notes-first.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Where AI adds the most value</h2>
+      <p class="muted">
+        The biggest gain is reducing conversion time: raw notes can quickly become summaries, flashcards, and quizzes.
+        Another benefit is targeted explanation when a topic is confusing. Instead of manually searching multiple
+        sources, students can ask focused questions in one place and keep the conversation tied to current study sets.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Safety and practical constraints</h2>
+      <p class="muted">
+        The app stores API keys locally in browser storage to avoid hardcoding credentials in the repository.
+        It also keeps external retrieval optional so students can disable it when they want to stay strictly within
+        class material. This keeps the tool flexible for different courses and teacher preferences.
+      </p>
+    </section>
   </main>
 </body>
 </html>
