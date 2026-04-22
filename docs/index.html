@@ -3,42 +3,42 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Study Smart Showcase</title>
+  <title>Study Smart Project Notes</title>
   <style>
     :root {
       color-scheme: light;
       --bg: #ffffff;
       --panel: #ffffff;
-      --panel-strong: #d7e4ff;
-      --text: #16213f;
-      --muted: #5f6f92;
-      --accent-1: #5964ff;
-      --accent-2: #2f8de9;
-      --accent-3: #1fbf9a;
+      --panel-strong: #d7deee;
+      --text: #1e293b;
+      --muted: #5b6473;
+      --accent-1: #3b82f6;
+      --accent-2: #2563eb;
+      --accent-3: #16a34a;
       --good: #2c9e65;
       --warn: #c9871f;
       --danger: #cc4f4f;
       --max: 1140px;
       --radius: 22px;
-      --shadow: 0 14px 36px rgba(30, 62, 116, 0.13);
-      --hero-bg: linear-gradient(155deg, #f5f9ff, #eef5ff 48%, #ecfffa);
-      --hero-border: #d6e2fb;
+      --shadow: 0 5px 16px rgba(15, 23, 42, 0.08);
+      --hero-bg: #f8fafc;
+      --hero-border: #dbe3f1;
       --kicker-bg: #ffffff;
       --kicker-border: #d4e0f7;
       --kicker-text: #516082;
       --btn-text: #ffffff;
-      --btn-bg: linear-gradient(120deg, var(--accent-2), var(--accent-1));
-      --btn-shadow: 0 8px 18px rgba(49, 98, 195, 0.25);
+      --btn-bg: var(--accent-2);
+      --btn-shadow: none;
       --btn-alt-bg: #ffffff;
       --btn-alt-text: #213154;
       --btn-alt-border: #cad8f2;
       --section-border: #dce7fb;
-      --card-bg: #f8fbff;
-      --card-border: #dce7f8;
-      --figure-bg: #f7faff;
-      --figure-border: #d7e3f7;
-      --screenshot-bg: #edf4ff;
-      --screenshot-border: #d7e3f7;
+      --card-bg: #f8fafc;
+      --card-border: #dde3ef;
+      --figure-bg: #f8fafc;
+      --figure-border: #dbe3ef;
+      --screenshot-bg: #edf2f7;
+      --screenshot-border: #dbe3ef;
       --tag-bg: #eef3ff;
       --tag-text: #25385f;
       --tag-border: #d4e1fb;
@@ -58,11 +58,7 @@
       margin: 0;
       font-family: "Inter", "Segoe UI", "SF Pro Text", system-ui, sans-serif;
       color: var(--text);
-      background:
-        radial-gradient(circle at 8% -10%, rgba(104, 118, 255, 0.2) 0, transparent 34%),
-        radial-gradient(circle at 94% 10%, rgba(70, 180, 214, 0.16) 0, transparent 30%),
-        radial-gradient(circle at 65% 115%, rgba(89, 200, 158, 0.16) 0, transparent 36%),
-        var(--bg);
+      background: var(--bg);
       line-height: 1.55;
     }
 
@@ -173,6 +169,41 @@
       letter-spacing: 0.01em;
     }
 
+    .split-links {
+      display: grid;
+      gap: 0.9rem;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      margin-top: 1rem;
+    }
+
+    .split-link {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1rem;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    .split-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.09);
+      border-color: var(--panel-strong);
+    }
+
+    .split-link h3 {
+      margin: 0 0 0.4rem;
+      font-size: 1.05rem;
+    }
+
+    .split-link p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
     .card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -268,8 +299,8 @@
         --panel-strong: rgba(255, 255, 255, 0.12);
         --text: #f2f6ff;
         --muted: #b8c7ea;
-        --shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
-        --hero-bg: linear-gradient(155deg, rgba(127, 123, 255, 0.2), rgba(53, 211, 255, 0.08) 45%, rgba(125, 247, 191, 0.08));
+        --shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
+        --hero-bg: rgba(255, 255, 255, 0.05);
         --hero-border: var(--panel-strong);
         --kicker-bg: rgba(255, 255, 255, 0.1);
         --kicker-border: rgba(255, 255, 255, 0.16);
@@ -299,11 +330,7 @@
       }
 
       body {
-        background:
-          radial-gradient(circle at 5% -5%, #2d3b8a 0, transparent 32%),
-          radial-gradient(circle at 95% 10%, #1a7aa1 0, transparent 30%),
-          radial-gradient(circle at 60% 120%, #1f7c66 0, transparent 35%),
-          var(--bg);
+        background: var(--bg);
       }
     }
 
@@ -328,118 +355,65 @@
 <body>
   <main class="page">
     <header class="hero">
-      <span class="kicker">AI School Helper • Project Showcase</span>
-      <h1>Study Smart: A local-first AI study workspace</h1>
+      <span class="kicker">AI School Helper • Student Project</span>
+      <h1>Study Smart: My notes-to-practice study app</h1>
       <p>
-        Study Smart turns class notes into structured summaries, flashcards, quizzes, and weak-topic insights.
-        It blends browser-native storage, spaced repetition logic, and optional AI/web augmentation into one streamlined learning workflow.
+        I built this to help with real classes where I had too much text to review and not enough time.
+        It turns notes into study tools (summaries, flashcards, quizzes, and Q&amp;A) and keeps everything in one place.
       </p>
       <div class="cta-row">
         <a class="btn" href="./AI%20School%20Helper/index.html">Open Live Tool</a>
         <a class="btn alt" href="#highlights">See Features</a>
       </div>
       <div class="meta">
-        <span><strong>Audience:</strong> Students building durable memory</span>
-        <span><strong>Format:</strong> One tab workflow with local persistence</span>
-        <span><strong>Design Goal:</strong> Fast, clear, and scale-friendly</span>
+        <span><strong>Built for:</strong> My own school classes</span>
+        <span><strong>Style:</strong> One-page workflow with local save</span>
+        <span><strong>Main goal:</strong> Less cramming, more active practice</span>
       </div>
     </header>
 
     <section id="highlights">
-      <h2>What this project does well</h2>
-      <p class="muted">Study Smart is built to move students from passive review to active mastery with a clear, repeatable loop.</p>
-
-      <div class="highlights-block">
-        <h3 class="highlights-subtitle">Core learning workflow strengths</h3>
-        <div class="grid">
-          <article class="card">
-            <h3>Library + note processing</h3>
-            <p class="muted">Ingests text or PDF-backed content, then chunks material for summaries, flashcards, and context-aware Q&A.</p>
-          </article>
-          <article class="card">
-            <h3>Summary-to-practice pipeline</h3>
-            <p class="muted">Turns long notes into concise study outputs so students can shift from reading to doing in the same session.</p>
-          </article>
-          <article class="card">
-            <h3>SRS retention loop</h3>
-            <p class="muted">Implements spaced repetition scoring (Again/Hard/Good/Easy) to improve long-term memory instead of short-term cramming.</p>
-          </article>
-          <article class="card">
-            <h3>Adaptive quiz feedback</h3>
-            <p class="muted">Uses quiz outcomes to reinforce understanding, identify misconceptions, and drive the next review cycle.</p>
-          </article>
-        </div>
-      </div>
-
-      <div class="highlights-block">
-        <h3 class="highlights-subtitle">AI and retrieval intelligence</h3>
-        <div class="grid">
-          <article class="card">
-            <h3>Notes-first retrieval</h3>
-            <p class="muted">Prioritizes the student’s own material before external data, preserving class alignment and teacher-specific vocabulary.</p>
-          </article>
-          <article class="card">
-            <h3>Optional web augmentation</h3>
-            <p class="muted">Adds Wikipedia and Tavily-supported context when notes are thin, outdated, or missing supporting explanations.</p>
-          </article>
-          <article class="card">
-            <h3>Multi-mode AI outputs</h3>
-            <p class="muted">Supports tutor answers, note refinement, and quiz generation with one consistent interface and shared context.</p>
-          </article>
-          <article class="card">
-            <h3>Local key storage model</h3>
-            <p class="muted">API keys stay in browser storage on-device, keeping setup simple while avoiding accidental hardcoded credentials.</p>
-          </article>
-        </div>
-      </div>
-
-      <div class="highlights-block">
-        <h3 class="highlights-subtitle">Product and usability wins</h3>
-        <div class="grid">
-          <article class="card">
-            <h3>Local-first persistence</h3>
-            <p class="muted">Works without a backend account system by storing user progress, docs, and study state directly in the browser.</p>
-          </article>
-          <article class="card">
-            <h3>Single-page student UX</h3>
-            <p class="muted">Keeps the full flow in one app shell (library, study, quiz, insights, chat), minimizing context switching.</p>
-          </article>
-          <article class="card">
-            <h3>Insight-driven review planning</h3>
-            <p class="muted">Weak-topic tracking gives students a concrete “what to study next” signal instead of generic recommendations.</p>
-          </article>
-          <article class="card">
-            <h3>Classroom-ready architecture</h3>
-            <p class="muted">Simple deploy model, lightweight dependencies, and clear feature boundaries make it practical for school demos and iteration.</p>
-          </article>
-        </div>
+      <h2>Explore features by page</h2>
+      <p class="muted">I split the old long section into smaller pages so it is easier to read and looks less crowded.</p>
+      <div class="split-links">
+        <a class="split-link" href="./workflow.html">
+          <h3>Core workflow</h3>
+          <p>How notes move into summaries, flashcards, quizzes, and weak-topic review.</p>
+        </a>
+        <a class="split-link" href="./ai-features.html">
+          <h3>AI features</h3>
+          <p>How AI and retrieval are used without taking over the app experience.</p>
+        </a>
+        <a class="split-link" href="./usability.html">
+          <h3>Usability and design</h3>
+          <p>Why the one-page setup and local-first storage work well for school use.</p>
+        </a>
       </div>
     </section>
 
     <section>
-      <h2>Output-focused screenshots</h2>
-      <p class="muted">These captures show the real app flows students actually use: secure sign-in, quiz practice, and ask-notes tutoring.</p>
+      <h2>Screenshots</h2>
+      <p class="muted">These are real screens from the current build: sign-in, quiz practice, and notes Q&amp;A.</p>
       <div class="screens">
         <figure>
-          <img class="screenshot" src="https://raw.githubusercontent.com/cgoldstein27-maker/AIStudy_ColbyG/main/docs/assets/sign-in-screen.png" alt="Study Smart sign-in screen with email and password inputs" loading="lazy" />
-          <figcaption>Secure local sign-in flow with email, password, and stay-signed-in option.</figcaption>
+          <img class="screenshot" src="./assets/sign-in-screen.jpg" alt="Study Smart sign-in screen with email and password inputs" loading="lazy" />
+          <figcaption>Sign-in screen with local account and stay-signed-in option.</figcaption>
         </figure>
         <figure>
-          <img class="screenshot" src="https://raw.githubusercontent.com/cgoldstein27-maker/AIStudy_ColbyG/main/docs/assets/quiz-screen.png" alt="Study Smart quiz tab showing set selector and standard quiz button" loading="lazy" />
-          <figcaption>Quiz mode focused on practice from your saved set with a one-click standard quiz start.</figcaption>
+          <img class="screenshot" src="./assets/quiz-screen.jpg" alt="Study Smart quiz tab showing set selector and standard quiz button" loading="lazy" />
+          <figcaption>Quiz tab for quick practice from saved note sets.</figcaption>
         </figure>
         <figure>
-          <img class="screenshot" src="https://raw.githubusercontent.com/cgoldstein27-maker/AIStudy_ColbyG/main/docs/assets/ask-notes-screen.png" alt="Study Smart ask-notes tab with prompt input and conversation panel" loading="lazy" />
-          <figcaption>Ask-notes tutoring workspace with source-set selection and side-by-side conversation history.</figcaption>
+          <img class="screenshot" src="./assets/ask-notes-screen.jpg" alt="Study Smart ask-notes tab with prompt input and conversation panel" loading="lazy" />
+          <figcaption>Ask-notes workspace for questions tied to selected source material.</figcaption>
         </figure>
       </div>
     </section>
 
     <section>
-      <h2>Tech stack and references</h2>
+      <h2>Tech stack</h2>
       <p class="muted">
-        This implementation intentionally stays lightweight while integrating modern learning workflows.
-        It relies on browser-native capabilities first, then optional API services for higher-quality generation.
+        I kept the stack simple on purpose: mostly browser-native code, then APIs where they actually improve results.
       </p>
       <div class="tags">
         <span class="tag">Vanilla HTML/CSS/JS</span>
@@ -452,15 +426,15 @@
     </section>
 
     <section>
-      <h2>Live motion demo</h2>
-      <p class="muted">A compact animation that mirrors how Study Smart cycles through notes, memory checks, and mastery milestones.</p>
+      <h2>Study flow snapshot</h2>
+      <p class="muted">A quick pass through the typical loop I use while studying.</p>
       <div class="demo-box">
         <div class="ticker" id="ticker"></div>
       </div>
     </section>
 
     <p class="footer">
-      Built as a single-file scroll page and ready to be repurposed into an enhanced project README narrative.
+      Built as a simple project page for classes, demos, and portfolio use.
     </p>
   </main>
 

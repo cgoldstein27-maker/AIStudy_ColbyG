@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study Smart | Usability</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --text: #1e293b;
+      --muted: #5b6473;
+      --border: #dbe3ef;
+      --accent: #2563eb;
+      --max: 900px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .page {
+      width: min(var(--max), 92vw);
+      margin: 0 auto;
+      padding: 2rem 0 3rem;
+    }
+    .back {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    h1 {
+      margin: 1rem 0 0.55rem;
+      font-size: clamp(1.7rem, 4vw, 2.4rem);
+    }
+    .muted { color: var(--muted); }
+    .grid {
+      display: grid;
+      gap: 0.9rem;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      margin-top: 1rem;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0.95rem;
+    }
+    .card h3 {
+      margin: 0 0 0.45rem;
+      font-size: 1.03rem;
+    }
+    .section {
+      margin-top: 1rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem;
+    }
+    .section h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.15rem;
+    }
+    .section p {
+      margin: 0;
+    }
+    .section + .section {
+      margin-top: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <a class="back" href="./index.html#highlights">← Back to main page</a>
+    <h1>Usability and design</h1>
+    <p class="muted">This page explains the product choices that make the app easier to use during real school study sessions.</p>
+    <div class="grid">
+      <article class="card">
+        <h3>Low-friction setup</h3>
+        <p class="muted">No account needed; study data saves locally.</p>
+      </article>
+      <article class="card">
+        <h3>Single workspace</h3>
+        <p class="muted">Library, flashcards, quiz, and chat stay in one flow.</p>
+      </article>
+      <article class="card">
+        <h3>Clear study priorities</h3>
+        <p class="muted">Weak-topic tracking shows what to review next.</p>
+      </article>
+      <article class="card">
+        <h3>Simple to present</h3>
+        <p class="muted">The architecture is lightweight and demo-friendly.</p>
+      </article>
+    </div>
+
+    <section class="section">
+      <h2>Why usability matters here</h2>
+      <p class="muted">
+        Students often stop using tools that feel complicated, even if the features are strong. This design focuses on
+        predictable flows, low setup cost, and clear next actions so the app is actually used repeatedly before quizzes
+        and tests.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Navigation and interaction choices</h2>
+      <p class="muted">
+        The app keeps related actions close together. Students can move from note library to flashcards, then to quiz,
+        without losing context. This reduces tab-switching and helps maintain focus during short study windows.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Local-first tradeoffs</h2>
+      <p class="muted">
+        Storing progress in local browser storage removes account friction and keeps setup fast. The tradeoff is that
+        data is tied to a device/browser profile unless exported. For a class project and everyday personal studying,
+        this is often a good balance between simplicity and usefulness.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>How this helps real study behavior</h2>
+      <p class="muted">
+        Instead of a generic dashboard, the interface points students toward concrete actions: review cards, run a quiz,
+        and revisit weak topics. That makes it easier to turn study time into specific progress rather than passive reading.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

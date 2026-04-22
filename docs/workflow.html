@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study Smart | Core Workflow</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --text: #1e293b;
+      --muted: #5b6473;
+      --border: #dbe3ef;
+      --accent: #2563eb;
+      --max: 900px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .page {
+      width: min(var(--max), 92vw);
+      margin: 0 auto;
+      padding: 2rem 0 3rem;
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .back {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(1.7rem, 4vw, 2.4rem);
+    }
+    .muted { color: var(--muted); }
+    .grid {
+      display: grid;
+      gap: 0.9rem;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      margin-top: 1rem;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0.95rem;
+    }
+    .card h3 {
+      margin: 0 0 0.45rem;
+      font-size: 1.03rem;
+    }
+    .section {
+      margin-top: 1rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem;
+    }
+    .section h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.15rem;
+    }
+    .section p {
+      margin: 0;
+    }
+    .section + .section {
+      margin-top: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="top">
+      <a class="back" href="./index.html#highlights">← Back to main page</a>
+    </div>
+    <h1>Core workflow</h1>
+    <p class="muted">This is the full study loop behind the app, from uploading notes to targeted re-review after quizzes.</p>
+    <div class="grid">
+      <article class="card">
+        <h3>Step 1: Build a note library</h3>
+        <p class="muted">Add text or PDF notes and group them by class/topic.</p>
+      </article>
+      <article class="card">
+        <h3>Step 2: Create study material</h3>
+        <p class="muted">Generate summaries and flashcards from the same notes.</p>
+      </article>
+      <article class="card">
+        <h3>Step 3: Practice with spacing</h3>
+        <p class="muted">Review cards with confidence ratings that control scheduling.</p>
+      </article>
+      <article class="card">
+        <h3>Step 4: Close the loop</h3>
+        <p class="muted">Use quiz outcomes to find weak topics and plan the next session.</p>
+      </article>
+    </div>
+
+    <section class="section">
+      <h2>Why this flow matters</h2>
+      <p class="muted">
+        Most study tools only handle one part of the process. This workflow keeps everything connected:
+        your source notes, your practice material, your quiz performance, and your next review decision.
+        That makes it easier to stay consistent across multiple school subjects.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>How notes become practice</h2>
+      <p class="muted">
+        After notes are uploaded, the app breaks long text into manageable chunks. Those chunks power summary
+        generation, flashcard prompts, and quiz question creation. The benefit is that each study mode is tied
+        to the same content source, so terminology and definitions stay consistent with your class notes.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>Review cycle and retention</h2>
+      <p class="muted">
+        Card reviews use an Again/Hard/Good/Easy model. Lower confidence brings cards back sooner, while higher
+        confidence spaces them out. Over time, this shifts effort from easy material toward weaker areas,
+        which is usually where most grade improvement comes from.
+      </p>
+    </section>
+
+    <section class="section">
+      <h2>How quiz feedback drives the next session</h2>
+      <p class="muted">
+        Quiz results are not treated as a final score only. The app records weak topics so your next study session
+        starts with what you missed. This creates a practical loop: study, test, identify weak points, then re-study
+        with more focus instead of restarting from zero.
+      </p>
+    </section>
+  </main>
+</body>
+</html>
