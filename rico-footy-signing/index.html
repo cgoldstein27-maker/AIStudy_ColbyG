@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rico Footy · Exceptional Status Signing — Christian LoPiano</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Oswald:wght@500;600;700&family=Teko:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --rico-orange: #ff6a00;
+      --rico-orange-hot: #ff8a1a;
+      --rico-orange-deep: #d44f00;
+      --rico-black: #0a0a0a;
+      --rico-ink: #111111;
+      --rico-smoke: #1a1a1a;
+      --rico-chrome: #e8e8e8;
+      --rico-muted: #b8b0a6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      font-family: "Oswald", sans-serif;
+      color: var(--rico-chrome);
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255, 106, 0, 0.22), transparent 55%),
+        radial-gradient(ellipse 60% 40% at 100% 100%, rgba(255, 106, 0, 0.12), transparent 50%),
+        linear-gradient(160deg, #050505 0%, #141210 45%, #0a0a0a 100%);
+      display: grid;
+      place-items: center;
+      padding: clamp(1rem, 3vw, 2.5rem);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.07;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      z-index: 0;
+    }
+
+    .stage {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 540px);
+      display: grid;
+      gap: 1.25rem;
+      justify-items: center;
+    }
+
+    /* Shareable post canvas — Instagram portrait ratio */
+    .post {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 5;
+      overflow: hidden;
+      isolation: isolate;
+      background: var(--rico-black);
+      box-shadow:
+        0 0 0 2px rgba(255, 106, 0, 0.35),
+        0 28px 60px rgba(0, 0, 0, 0.65);
+      animation: postIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes postIn {
+      from {
+        opacity: 0;
+        transform: translateY(28px) scale(0.97);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .post__photo {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: 52% 18%;
+      transform: scale(1.08);
+      animation: kenBurns 14s ease-in-out infinite alternate;
+      filter: saturate(1.05) contrast(1.05);
+    }
+
+    @keyframes kenBurns {
+      from {
+        transform: scale(1.08) translate(0, 0);
+      }
+      to {
+        transform: scale(1.14) translate(-1.5%, -1%);
+      }
+    }
+
+    .post__wash {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(
+          180deg,
+          rgba(8, 6, 4, 0.55) 0%,
+          rgba(8, 6, 4, 0.12) 28%,
+          rgba(8, 6, 4, 0.05) 48%,
+          rgba(8, 6, 4, 0.55) 72%,
+          rgba(5, 4, 3, 0.94) 100%
+        ),
+        linear-gradient(
+          90deg,
+          rgba(255, 106, 0, 0.18) 0%,
+          transparent 28%,
+          transparent 72%,
+          rgba(255, 106, 0, 0.12) 100%
+        );
+      pointer-events: none;
+    }
+
+    .post__grain {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.18;
+      mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .post__rim {
+      position: absolute;
+      inset: 10px;
+      border: 1px solid rgba(255, 138, 26, 0.45);
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    .post__rim::before,
+    .post__rim::after {
+      content: "";
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-color: var(--rico-orange);
+      border-style: solid;
+    }
+
+    .post__rim::before {
+      top: -1px;
+      left: -1px;
+      border-width: 3px 0 0 3px;
+    }
+
+    .post__rim::after {
+      bottom: -1px;
+      right: -1px;
+      border-width: 0 3px 3px 0;
+    }
+
+    .brand {
+      position: absolute;
+      top: 1.35rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 5;
+      width: min(42%, 170px);
+      animation: brandDrop 0.85s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    @keyframes brandDrop {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-18px) scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+      }
+    }
+
+    .brand__logo {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 50%;
+      filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.55));
+    }
+
+    .copy {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 5;
+      padding: 1.5rem 1.35rem 1.55rem;
+      text-align: center;
+    }
+
+    .status {
+      display: inline-block;
+      font-family: "Teko", sans-serif;
+      font-weight: 700;
+      font-size: clamp(1.05rem, 4.2vw, 1.35rem);
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--rico-orange);
+      text-shadow: 0 0 24px rgba(255, 106, 0, 0.35);
+      margin-bottom: 0.35rem;
+      animation: statusPulse 2.8s ease-in-out infinite, fadeUp 0.7s 0.35s both;
+    }
+
+    @keyframes statusPulse {
+      0%,
+      100% {
+        opacity: 1;
+        letter-spacing: 0.28em;
+      }
+      50% {
+        opacity: 0.88;
+        letter-spacing: 0.32em;
+      }
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    .status-line {
+      width: min(72%, 240px);
+      height: 3px;
+      margin: 0 auto 0.85rem;
+      background: linear-gradient(90deg, transparent, var(--rico-orange), transparent);
+      animation: lineGrow 0.8s 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+      transform-origin: center;
+    }
+
+    @keyframes lineGrow {
+      from {
+        transform: scaleX(0);
+        opacity: 0;
+      }
+      to {
+        transform: scaleX(1);
+        opacity: 1;
+      }
+    }
+
+    .name {
+      font-family: "Bangers", cursive;
+      font-weight: 400;
+      font-size: clamp(2.55rem, 11vw, 3.65rem);
+      line-height: 0.92;
+      letter-spacing: 0.04em;
+      color: #fff;
+      text-transform: uppercase;
+      text-shadow:
+        0 3px 0 #000,
+        0 6px 0 rgba(0, 0, 0, 0.35),
+        0 10px 28px rgba(0, 0, 0, 0.55);
+      margin-bottom: 0.55rem;
+      animation: fadeUp 0.75s 0.5s both;
+    }
+
+    .name span {
+      display: block;
+      color: var(--rico-orange-hot);
+      -webkit-text-stroke: 1px rgba(0, 0, 0, 0.35);
+    }
+
+    .blurb {
+      font-family: "Oswald", sans-serif;
+      font-weight: 500;
+      font-size: clamp(0.92rem, 3.4vw, 1.05rem);
+      line-height: 1.35;
+      letter-spacing: 0.04em;
+      color: var(--rico-muted);
+      max-width: 28ch;
+      margin: 0 auto;
+      animation: fadeUp 0.75s 0.65s both;
+    }
+
+    .blurb strong {
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .tag {
+      margin-top: 0.95rem;
+      font-family: "Teko", sans-serif;
+      font-size: clamp(1rem, 3.8vw, 1.2rem);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--rico-orange);
+      animation: fadeUp 0.75s 0.8s both;
+    }
+
+    .meta {
+      text-align: center;
+      max-width: 36ch;
+      color: var(--rico-muted);
+      font-size: 0.95rem;
+      letter-spacing: 0.06em;
+      line-height: 1.45;
+      animation: fadeUp 0.8s 0.9s both;
+    }
+
+    .meta em {
+      font-style: normal;
+      color: var(--rico-orange-hot);
+    }
+
+    @media (max-width: 420px) {
+      .brand {
+        width: min(38%, 130px);
+        top: 1rem;
+      }
+
+      .copy {
+        padding: 1.15rem 1rem 1.25rem;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+
+      .post__photo {
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <article class="post" aria-label="Rico Footy exceptional status signing announcement for Christian LoPiano">
+      <img
+        class="post__photo"
+        src="assets/christian-lopiano.jpg"
+        alt="Christian LoPiano celebrating with a hockey stick"
+      />
+      <div class="post__wash" aria-hidden="true"></div>
+      <div class="post__grain" aria-hidden="true"></div>
+      <div class="post__rim" aria-hidden="true"></div>
+
+      <div class="brand">
+        <img
+          class="brand__logo"
+          src="assets/rico-footy-logo.jpg"
+          alt="Rico Footy"
+        />
+      </div>
+
+      <div class="copy">
+        <p class="status">Exceptional Status Signing</p>
+        <div class="status-line" aria-hidden="true"></div>
+        <h1 class="name">Christian <span>LoPiano</span></h1>
+        <p class="blurb">
+          Younger than most in the league — locked in early and
+          <strong>entering a year older</strong>.
+        </p>
+        <p class="tag">Welcome to Rico Footy</p>
+      </div>
+    </article>
+
+    <p class="meta">
+      Official signing graphic · <em>Exceptional Status</em> class · Rico Footy
+    </p>
+  </main>
+</body>
+</html>
