@@ -354,10 +354,6 @@
     let scoreSaved;
     let audioCtx;
 
-    /**
-     * Reads saved high scores from localStorage. Returns an empty list if nothing is saved or
-     * the JSON is broken.
-     */
     function getLeaderboard() {
       try {
         const parsed = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || "[]");
@@ -367,10 +363,6 @@
       }
     }
 
-    /**
-     * Shows the top 10 scores, highest first, or the empty message when nobody has a score
-     * yet.
-     */
     function renderLeaderboard() {
       const entries = getLeaderboard()
         .sort((a, b) => b.score - a.score)
@@ -388,10 +380,6 @@
       });
     }
 
-    /**
-     * Stores this run's score once, under the name typed on the home screen, then refreshes
-     * the leaderboard.
-     */
     function saveScoreIfNeeded() {
       if (scoreSaved) return;
       scoreSaved = true;
@@ -405,10 +393,6 @@
       renderLeaderboard();
     }
 
-    /**
-     * Plays a short two-honk plus wobble through the Web Audio API when the snake dies. Does
-     * nothing if audio is unavailable.
-     */
     function playGoofyLoseSound() {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextClass) return;
@@ -454,7 +438,6 @@
       wobble.stop(t0 + 0.92);
     }
 
-    /** Picks a random grid cell. */
     function randomCell() {
       return {
         x: Math.floor(Math.random() * GRID),
@@ -462,12 +445,10 @@
       };
     }
 
-    /** True when that cell is already part of the snake. */
     function occupiedBySnake(cell) {
       return snake.some((s) => s.x === cell.x && s.y === cell.y);
     }
 
-    /** Picks a cell that is not on the snake, the real food, or a fake food. */
     function randomFreeCell() {
       let c = randomCell();
       let tries = 0;
@@ -478,10 +459,6 @@
       return c;
     }
 
-    /**
-     * Puts the snake, score, food, and chaos timers back to a new run and waits for an arrow
-     * key.
-     */
     function resetGame() {
       snake = [
         { x: 10, y: 12 },
@@ -526,13 +503,11 @@
       draw();
     }
 
-    /** Hides the home screen and shows the board. */
     function showGameScreen() {
       homeScreenEl.classList.add("hidden");
       gameScreenEl.classList.remove("hidden");
     }
 
-    /** Hides the board, shows the home screen, and refreshes the leaderboard. */
     function showHomeScreen() {
       gameScreenEl.classList.add("hidden");
       homeScreenEl.classList.remove("hidden");
@@ -540,7 +515,6 @@
       renderLeaderboard();
     }
 
-    /** Writes a message on top of the board. flash marks it as a warning style. */
     function overlay(text, flash = false) {
       overlayEl.textContent = text;
       overlayEl.classList.add("show");
@@ -551,22 +525,18 @@
       }
     }
 
-    /** Removes the message on top of the board. */
     function clearOverlay() {
       overlayEl.classList.remove("show");
     }
 
-    /** True during the window when the snake can die by running into its own body. */
     function isSelfPhaseActive(t) {
       return t < selfPhaseUntil;
     }
 
-    /** True during the window when the arrow keys are reversed. */
     function isInvertedActive(t) {
       return t < invertUntil;
     }
 
-    /** Moves the real food to a new free cell so it is harder to catch. */
     function moveFoodAway() {
       const head = snake[0];
       const options = [
@@ -585,7 +555,6 @@
       if (chance(0.78)) food = valid[0];
     }
 
-    /** Steps one fake food one cell closer to the snake's head. */
     function moveFakeFoodTowardSnake(fake) {
       const head = snake[0];
       const candidates = [
@@ -607,7 +576,6 @@
       return fake;
     }
 
-    /** Places a new real food on a free cell after the snake eats. */
     function spawnRealFood() {
       food = randomFreeCell();
       if (chance(0.38)) {
@@ -618,10 +586,6 @@
       if (fakeFoods.length > 3) fakeFoods.shift();
     }
 
-    /**
-     * Advances one game step: chaos events, movement, eating, collisions, score, and then
-     * redraws the board.
-     */
     function tick() {
       const t = now();
       let countdownActive = false;
@@ -739,7 +703,6 @@
       }
     }
 
-    /** Ends the run, plays the lose sound, saves the score, and shows why the snake died. */
     function die(reason) {
       running = false;
       dead = true;
@@ -750,10 +713,6 @@
       saveScoreIfNeeded();
     }
 
-    /**
-     * Paints the board background and grid lines. The shift arguments offset the grid during a
-     * glitch.
-     */
     function drawGrid(glitchShiftX = 0, glitchShiftY = 0) {
       ctx.save();
       ctx.translate(glitchShiftX, glitchShiftY);
@@ -773,7 +732,6 @@
       ctx.restore();
     }
 
-    /** Fills one grid cell in the given color, with an optional glitch offset. */
     function drawCell(cell, color, inset = 2, glitchShiftX = 0, glitchShiftY = 0) {
       const x = cell.x * CELL + inset + glitchShiftX;
       const y = cell.y * CELL + inset + glitchShiftY;
@@ -782,7 +740,6 @@
       ctx.fillRect(x, y, s, s);
     }
 
-    /** Redraws the grid, food, fake food, and the snake for the current frame. */
     function draw() {
       const t = now();
       const glitched = t < glitchUntil;
@@ -806,10 +763,6 @@
       });
     }
 
-    /**
-     * The animation loop. It steps the game on a timer while a run is active, then asks for
-     * the next frame.
-     */
     function gameLoop(t) {
       const dt = t - lastFrame;
       lastFrame = t;

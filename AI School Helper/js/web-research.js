@@ -8,18 +8,10 @@
 const WIKI_REQUEST_TIMEOUT_MS = 8000;
 const WIKI_TOTAL_TIMEOUT_MS = 12000;
 
-/**
- * The result used when Wikipedia does not answer in time: no article, and timedOut set so
- * the UI can say the lookup was slow.
- */
 function wikiTimedOutResult() {
   return { title: "", extract: "", url: "", timedOut: true };
 }
 
-/**
- * GETs a URL and parses JSON. Returns null on a bad status, and aborts if the request
- * exceeds the timeout.
- */
 async function fetchJsonWithTimeout(url, timeoutMs) {
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), timeoutMs);

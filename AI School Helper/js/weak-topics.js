@@ -6,7 +6,6 @@
  * The insights tab sorts by miss rate so you see what to revisit.
  */
 
-/** Adds a miss and/or a hit to one topic. Creates that topic the first time it is seen. The caller saves the library. */
 export function recordWeak(state, topicKey, label, deltaWrong = 0, deltaCorrect = 0) {
   if (!topicKey) return;
   const w = state.weakTopics[topicKey] || {

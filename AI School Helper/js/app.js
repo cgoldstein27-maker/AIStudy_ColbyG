@@ -41,10 +41,6 @@ let state = defaultState();
 /** Shorthand for one DOM node (matches how the HTML ids are set up). */
 const $ = (sel) => document.querySelector(sel);
 
-/**
- * Returns the first non-empty OpenAI key from the research field, the settings field, the
- * quiz field, then the saved key.
- */
 function readApiKey() {
   const norm = (v) => (v == null || typeof v !== "string" ? "" : v.trim().replace(/\u00a0/g, ""));
   return (
@@ -56,10 +52,6 @@ function readApiKey() {
   );
 }
 
-/**
- * Copies the saved API key into any key box that is still empty, so settings, research,
- * and quiz show the same key.
- */
 function syncOpenAiKeyFields() {
   const v = localStorage.getItem(OPENAI_STORAGE) || "";
   for (const id of ["openai-key", "research-openai-key", "quiz-openai-key"]) {
@@ -68,10 +60,6 @@ function syncOpenAiKeyFields() {
   }
 }
 
-/**
- * Saves the key from the box the user just edited, or removes the saved key if that box is
- * cleared. The other key boxes are updated to match.
- */
 function persistOpenAiKeyFromField(el) {
   if (!el) return;
   const v = el.value.trim();
@@ -83,7 +71,6 @@ function persistOpenAiKeyFromField(el) {
   }
 }
 
-/** Fills the optional API base URL box from localStorage when that box is empty. */
 function syncOpenAiBaseField() {
   const el = $("#openai-api-base");
   if (!el) return;
@@ -95,10 +82,6 @@ function syncOpenAiBaseField() {
   }
 }
 
-/**
- * Saves a custom http(s) API base URL, or clears it when the box is blank. Other text is
- * ignored.
- */
 function persistOpenAiBaseFromField() {
   const el = $("#openai-api-base");
   if (!el) return;
@@ -118,10 +101,6 @@ function persist() {
 
 const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
 
-/**
- * Builds a stable account id from the email. It separates each person's notes in
- * localStorage. It is not a password hash.
- */
 function userIdFromEmail(email) {
   const e = normalizeEmail(email);
   let hash = 0;
@@ -129,19 +108,11 @@ function userIdFromEmail(email) {
   return `u-${hash.toString(36)}`;
 }
 
-/**
- * The localStorage key for this person's notes. A signed-in user gets their own key;
- * otherwise the shared key is used.
- */
 function storageKeyForSession(s) {
   if (!s?.userId) return STORAGE_KEY_BASE;
   return `${STORAGE_KEY_BASE}::${s.userId}`;
 }
 
-/**
- * Loads the map of emails to password salts and hashes. Returns an empty map if nothing is
- * saved or the JSON is broken.
- */
 function loadUserIndex() {
   try {
     const raw = localStorage.getItem(USER_INDEX_KEY);
@@ -153,31 +124,21 @@ function loadUserIndex() {
   }
 }
 
-/** Writes the email account map back to localStorage. */
 function saveUserIndex(index) {
   localStorage.setItem(USER_INDEX_KEY, JSON.stringify(index || {}));
 }
 
-/** Makes a new 16-byte random salt, as hex, the first time an email registers. */
 function randomSaltHex() {
   const arr = new Uint8Array(16);
   crypto.getRandomValues(arr);
   return Array.from(arr, (x) => x.toString(16).padStart(2, "0")).join("");
 }
 
-/**
- * Hashes text with SHA-256 and returns lowercase hex. Sign-in hashes the salt plus the
- * password so the password itself is not stored.
- */
 async function sha256Hex(text) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(text || "")));
   return Array.from(new Uint8Array(buf), (x) => x.toString(16).padStart(2, "0")).join("");
 }
 
-/**
- * Reads who is signed in. Returns null if the session is missing, broken, or has no email
- * and user id.
- */
 function loadSessionRecord() {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
@@ -190,7 +151,6 @@ function loadSessionRecord() {
   }
 }
 
-/** Stores the signed-in email, account id, and whether Stay signed in was checked. */
 function saveSessionRecord(email, rememberMe) {
   const norm = normalizeEmail(email);
   localStorage.setItem(
@@ -203,7 +163,6 @@ function saveSessionRecord(email, rememberMe) {
   );
 }
 
-/** Returns the last main tab, or Library if the saved name is missing or not a real tab. */
 function getLastTab() {
   try {
     const t = localStorage.getItem(LAST_TAB_KEY);
@@ -213,7 +172,6 @@ function getLastTab() {
   }
 }
 
-/** Remembers the open tab for the next visit. Unknown names and storage errors are ignored. */
 function persistLastTab(name) {
   if (!VALID_TABS.has(name)) return;
   try {
@@ -223,7 +181,6 @@ function persistLastTab(name) {
   }
 }
 
-/** Shows Signed in as {email} in the header, or hides that line when nobody is signed in. */
 function updateSessionHeader() {
   const s = loadSessionRecord();
   const wrap = $("#header-session");
@@ -238,14 +195,12 @@ function updateSessionHeader() {
   }
 }
 
-/** Shows the sign-in card and marks the page so the app behind it is not used yet. */
 function showStartGate() {
   const gate = $("#start-screen");
   if (gate) gate.hidden = false;
   document.body.classList.add("start-gate-active");
 }
 
-/** Hides the sign-in card so the main app can be used. */
 function hideStartGate() {
   const gate = $("#start-screen");
   if (gate) gate.hidden = true;
@@ -266,7 +221,6 @@ function setTab(name) {
   persistLastTab(name);
 }
 
-/** Finds one saved note set by id. */
 function getDoc(id) {
   return state.docs.find((d) => d.id === id);
 }
@@ -380,7 +334,6 @@ function processAndSaveDoc(title, content) {
 /** Cached AP-style starter topics loaded from `js/ap-starter-topics.json`. */
 let apStarterDataCache = null;
 
-/** Loads the bundled starter-topic list once and reuses it after that. */
 async function loadApStarterData() {
   if (apStarterDataCache) return apStarterDataCache;
   const res = await fetch("js/ap-starter-topics.json", { cache: "force-cache" });
@@ -497,10 +450,6 @@ function collectDueCards() {
   return due.sort(() => Math.random() - 0.5);
 }
 
-/**
- * Shows the current due card with the answer hidden, or the empty message when the queue
- * is finished.
- */
 function renderSrsCard() {
   const empty = $("#srs-empty");
   const session = $("#srs-session");
@@ -529,17 +478,12 @@ function renderSrsCard() {
   srsRevealed = false;
 }
 
-/** Rebuilds the due-card queue and shows the first card. */
 function startSrsSession() {
   srsQueue = collectDueCards();
   srsIndex = 0;
   renderSrsCard();
 }
 
-/**
- * Uncovers the answer and the Again / Hard / Good / Easy buttons. Does nothing if the
- * answer is already visible.
- */
 function revealSrs() {
   const a = $("#srs-a");
   if (!a || !a.classList.contains("srs-concealed")) return;
@@ -634,10 +578,6 @@ function refreshCreateNotesTarget() {
   else if (state.activeDocId && ids.has(state.activeDocId)) sel.value = state.activeDocId;
 }
 
-/**
- * Shows the empty quiz message, and enables Standard quiz only when the selected set has
- * cards or enough note text.
- */
 function renderQuizEmpty() {
   const qSel = $("#quiz-doc-select");
   if (!qSel) return;
@@ -757,10 +697,6 @@ async function startAdvancedQuiz() {
   }
 }
 
-/**
- * Draws the current question, the progress line, and one button per choice. Answering is
- * unlocked.
- */
 function renderQuizQuestion() {
   const item = quizItems[quizIdx];
   $("#quiz-progress").textContent = `Question ${quizIdx + 1} of ${quizItems.length}`;
@@ -780,10 +716,6 @@ function renderQuizQuestion() {
   });
 }
 
-/**
- * Locks the question after one click, highlights the right choice, records a hit or miss,
- * and shows Next.
- */
 function onQuizPick(btn, item, opt) {
   if (quizLocked) return;
   quizLocked = true;
@@ -806,7 +738,6 @@ function onQuizPick(btn, item, opt) {
   renderWeakTopics();
 }
 
-/** Shows the next question, or ends the quiz after the last one. */
 function quizNext() {
   quizIdx += 1;
   if (quizIdx >= quizItems.length) {
@@ -861,11 +792,7 @@ function appendChat(role, text, cites) {
   log.scrollTop = log.scrollHeight;
 }
 
-/**
- * Wires the page once: tabs, save and upload, delete and regenerate, AI refine,
- * flashcard reveal and ratings, quiz controls, API key fields, research notes,
- * and Ask notes. Each handler calls the function that does that job.
- */
+/* ---------- Wire DOM events once ---------- */
 function bindUi() {
   document.querySelectorAll(".tab").forEach((t) => {
     t.addEventListener("click", () => {
@@ -1135,10 +1062,6 @@ function bindUi() {
   wireApStarterPickers();
 }
 
-/**
- * Loads this account's library, wires the screen, and opens the last tab. Runs once per
- * page load.
- */
 function initMainApp() {
   if (mainAppInitialized) return;
   mainAppInitialized = true;
@@ -1156,10 +1079,6 @@ function initMainApp() {
   updateSessionHeader();
 }
 
-/**
- * Checks the email and password, creates the account the first time, or rejects a wrong
- * password. Then opens the app.
- */
 async function onStartContinue() {
   const err = $("#start-error");
   const emailInput = $("#start-email");
@@ -1199,7 +1118,6 @@ async function onStartContinue() {
   initMainApp();
 }
 
-/** Clears the sign-in session and reloads the page. Notes stay saved under that account. */
 function signOut() {
   try {
     localStorage.removeItem(SESSION_KEY);
@@ -1209,16 +1127,11 @@ function signOut() {
   location.reload();
 }
 
-/** True when Stay signed in is set, so the sign-in card can be skipped. */
 function shouldSkipStartGate() {
   const s = loadSessionRecord();
   return Boolean(s?.rememberMe && s.userId && s.email);
 }
 
-/**
- * Starts the page: wires sign-in and sign-out, skips the gate when the session is
- * remembered, otherwise shows the gate.
- */
 function boot() {
   $("#btn-start-continue")?.addEventListener("click", onStartContinue);
   $("#btn-sign-out")?.addEventListener("click", signOut);
