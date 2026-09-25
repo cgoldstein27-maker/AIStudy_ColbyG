@@ -452,10 +452,15 @@
       r: config.puckRadius
     };
 
+    /** Keeps a number between min and max. */
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
     }
 
+    /**
+     * Puts the puck back at center and gives it a new speed. direction 1 goes right, -1 goes
+     * left.
+     */
     function resetPuck(direction = 1) {
       puck.x = CENTER_X;
       puck.y = H * 0.5;
@@ -465,6 +470,7 @@
       puck.vy = Math.sin(angle) * speed;
     }
 
+    /** Draws a filled circle with a colored glow, used for the puck and paddles. */
     function drawGlowCircle(x, y, radius, color, glow = 20) {
       ctx.save();
       ctx.shadowColor = color;
@@ -476,6 +482,7 @@
       ctx.restore();
     }
 
+    /** Clears the canvas and draws the boards, center line, faceoff circle, and both goals. */
     function drawRink() {
       ctx.clearRect(0, 0, W, H);
 
@@ -518,6 +525,7 @@
       ctx.shadowBlur = 0;
     }
 
+    /** Dims the rink and draws the PAUSED label. */
     function drawPauseOverlay() {
       ctx.save();
       ctx.fillStyle = "rgba(4, 10, 24, 0.45)";
@@ -531,6 +539,7 @@
       ctx.restore();
     }
 
+    /** Creates the audio context on first use and resumes it if the browser suspended it. */
     function ensureAudio() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -540,6 +549,7 @@
       }
     }
 
+    /** Plays a short two-tone horn when a goal is scored. */
     function playGoalHorn() {
       ensureAudio();
       if (!audioContext) return;
@@ -569,11 +579,13 @@
       oscB.stop(now + 0.56);
     }
 
+    /** Pauses or resumes the match and updates the pause button label. */
     function setPaused(nextPaused) {
       state.isPaused = nextPaused;
       pauseBtn.textContent = state.isPaused ? "Resume" : "Pause";
     }
 
+    /** Moves one paddle from the keys that are held, and keeps it inside its half of the rink. */
     function movePaddleKeyboard(paddle, left, right, up, down, minX, maxX) {
       paddle.prevX = paddle.x;
       paddle.prevY = paddle.y;
@@ -595,6 +607,7 @@
       paddle.y = clamp(paddle.y + dy, paddle.r + 10, H - paddle.r - 10);
     }
 
+    /** Moves the left paddle from WASD, or toward the pointer in single-player mouse control. */
     function movePlayer() {
       movePaddleKeyboard(
         player,
@@ -607,6 +620,7 @@
       );
     }
 
+    /** Moves the right paddle from the arrow keys when two people are playing. */
     function movePlayer2() {
       movePaddleKeyboard(
         player2,
@@ -619,10 +633,15 @@
       );
     }
 
+    /**
+     * Returns how fast the computer paddle moves and how far ahead it aims, based on easy,
+     * medium, or hard.
+     */
     function getAiParams() {
       return AI_BY_DIFFICULTY[state.difficulty] || AI_BY_DIFFICULTY.medium;
     }
 
+    /** Moves the right paddle toward where the puck is heading, using the current difficulty. */
     function moveAI() {
       player2.prevX = player2.x;
       player2.prevY = player2.y;
@@ -653,6 +672,10 @@
       }
     }
 
+    /**
+     * Pushes two overlapping circles apart so the puck and a paddle do not stay stuck
+     * together.
+     */
     function separateBodies(a, b) {
       const dx = b.x - a.x;
       const dy = b.y - a.y;
@@ -712,6 +735,10 @@
       }
     }
 
+    /**
+     * Moves the puck, bounces it off the top and bottom, checks paddle hits, and scores when
+     * it enters a goal.
+     */
     function updatePuck() {
       puck.x += puck.vx;
       puck.y += puck.vy;
@@ -773,6 +800,7 @@
       }
     }
 
+    /** Draws both paddles and the puck on top of the rink. */
     function drawObjects() {
       drawGlowCircle(player.x, player.y, player.r, "#00eaff", 24);
       drawGlowCircle(player2.x, player2.y, player2.r, "#ff2bd6", 24);
@@ -781,6 +809,7 @@
       drawGlowCircle(puck.x, puck.y, puck.r * 0.45, "#f2ffd9", 8);
     }
 
+    /** Puts keyboard focus on the game so arrow keys move the paddle instead of the page. */
     function focusGameInput() {
       if (state.screen !== "playing") return;
       try {
@@ -790,6 +819,10 @@
       }
     }
 
+    /**
+     * True when focus is in a button or form control, so those keys are not stolen by the
+     * game.
+     */
     function isFormOrButtonFocused() {
       const el = document.activeElement;
       if (!el || el === document.body) return false;
@@ -803,6 +836,7 @@
       );
     }
 
+    /** Updates the on-screen names for single-player (You / CPU) or two-player (P1 / P2). */
     function syncHudLabels() {
       const single = state.mode === "single";
       leftLabel.textContent = single ? "You" : "P1";
@@ -812,6 +846,10 @@
         : "P1 WASD + Space • P2 arrows + Enter • click rink if stuck • R P pause";
     }
 
+    /**
+     * Shows or hides the difficulty picker and second-player help based on the mode chosen on
+     * the home screen.
+     */
     function syncHomeUI() {
       const single = homePick.mode === "single";
       homeSingleBtn.classList.toggle("active", single);
@@ -826,6 +864,10 @@
       diffHardBtn.classList.toggle("active", homePick.difficulty === "hard");
     }
 
+    /**
+     * Moves both paddles to their start spots and serves the puck toward the side that should
+     * receive it.
+     */
     function resetPaddlesAndPuck() {
       player.x = player.prevX = W * 0.22;
       player.y = player.prevY = H * 0.5;
@@ -834,6 +876,7 @@
       resetPuck(Math.random() < 0.5 ? -1 : 1);
     }
 
+    /** Resets the rink for the next point and starts play. */
     function beginRound() {
       state.gameOver = false;
       state.playerScore = 0;
@@ -850,6 +893,10 @@
       resetPaddlesAndPuck();
     }
 
+    /**
+     * Leaves the home screen, resets the score, and starts a match with the chosen mode and
+     * difficulty.
+     */
     function startGameFromMenu() {
       state.mode = homePick.mode;
       state.difficulty = homePick.difficulty;
@@ -864,6 +911,10 @@
       });
     }
 
+    /**
+     * Stops the match and returns to the home screen without clearing the last score display
+     * until a new game starts.
+     */
     function goHome() {
       state.screen = "home";
       state.gameOver = false;
@@ -878,6 +929,7 @@
       homeScreen.classList.remove("hidden");
     }
 
+    /** Stops play, shows who won, and plays the goal horn for the last goal. */
     function endMatch(leftScoredWin) {
       state.gameOver = true;
       state.isPaused = false;
@@ -898,6 +950,10 @@
       gameOverModal.classList.remove("hidden");
     }
 
+    /**
+     * One frame: moves paddles and puck, redraws the rink, and schedules the next frame while
+     * a match is running.
+     */
     function tick() {
       if (state.screen === "playing") {
         drawRink();
@@ -919,6 +975,7 @@
       requestAnimationFrame(tick);
     }
 
+    /** Sets or clears one movement key (WASD or arrows) from a keydown or keyup event. */
     function applyMovementKey(event, down) {
       const code = event.code;
       const key = event.key;
@@ -961,6 +1018,7 @@
       return false;
     }
 
+    /** Handles pause, restart, and movement keys while a match is on screen. */
     function onKeyDown(event) {
       if (state.screen !== "playing" || state.gameOver) {
         return;
@@ -1015,6 +1073,7 @@
       }
     }
 
+    /** Clears a movement key when it is released. */
     function onKeyUp(event) {
       if (state.screen !== "playing") {
         return;
@@ -1074,6 +1133,7 @@
       syncHomeUI();
     });
 
+    /** Stores the home-screen difficulty and marks the matching button selected. */
     function setHomeDifficulty(d) {
       homePick.difficulty = d;
       syncHomeUI();

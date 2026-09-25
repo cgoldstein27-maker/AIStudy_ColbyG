@@ -212,6 +212,10 @@ export async function generateResearchNotes({ topic, userPrompt, apiKey, useWeb 
   }
 }
 
+/**
+ * Reads a JSON object out of a model reply. Strips ``` fences, then tries the text between
+ * the first { and the last }.
+ */
 function parseJsonFromModelContent(raw) {
   let t = (raw || "").trim();
   if (t.startsWith("```")) {

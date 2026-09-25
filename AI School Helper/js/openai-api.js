@@ -10,6 +10,10 @@ export const OPENAI_API_BASE_STORAGE_KEY = "study-smart-openai-api-base";
 
 const DEFAULT_OPENAI_BASE = "https://api.openai.com/v1";
 
+/**
+ * Returns the saved API root if it is an http or https URL, otherwise
+ * https://api.openai.com/v1.
+ */
 export function getOpenAiApiBase() {
   try {
     const raw = localStorage.getItem(OPENAI_API_BASE_STORAGE_KEY);
@@ -21,6 +25,7 @@ export function getOpenAiApiBase() {
   }
 }
 
+/** The full POST URL for chat completions, built from the saved API root. */
 export function chatCompletionsUrl() {
   return `${getOpenAiApiBase()}/chat/completions`;
 }

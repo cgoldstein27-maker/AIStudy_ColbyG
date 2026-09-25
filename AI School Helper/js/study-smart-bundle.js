@@ -19,10 +19,19 @@
   const STORAGE_KEY_BASE = "study-smart-v1";
   let CURRENT_STATE_KEY = STORAGE_KEY_BASE;
 
+  /**
+   * Returns a blank library: no note sets, no spaced-repetition stats, no weak-topic counts,
+   * and no selected set.
+   */
   function defaultState() {
     return { docs: [], srs: {}, weakTopics: {}, activeDocId: null };
   }
 
+  /**
+   * Reads the saved library JSON from localStorage. If the key is missing or the JSON is
+   * broken, returns a blank library. New fields are filled from the blank shape so older
+   * saves still load.
+   */
   function loadState() {
     try {
       const raw = localStorage.getItem(CURRENT_STATE_KEY);
@@ -34,10 +43,15 @@
     }
   }
 
+  /** Writes the whole library object to localStorage as one JSON string. */
   function saveState(state) {
     localStorage.setItem(CURRENT_STATE_KEY, JSON.stringify(state));
   }
 
+  /**
+   * Makes a short unique id from the current time and a random suffix, used for new note
+   * sets and flashcards.
+   */
   function newId() {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
   }
@@ -50,6 +64,10 @@
     )
   );
 
+  /**
+   * Turns text into lowercase words, drops punctuation and very common words, so summaries
+   * and search can compare content.
+   */
   function tokenize(text) {
     if (text == null) return [];
     return String(text)
@@ -59,6 +77,10 @@
       .filter((w) => w.length > 1 && !STOP.has(w));
   }
 
+  /**
+   * Splits notes into paragraphs on blank lines. If there are no blank lines, the whole text
+   * is one chunk.
+   */
   function splitChunks(content) {
     const parts = content
       .split(/\n\s*\n+/)
@@ -68,16 +90,22 @@
     return parts;
   }
 
+  /** Uses the first line of a chunk as its topic title, shortened so the UI can show it. */
   function firstLineLabel(chunk) {
     const line = chunk.split("\n")[0].trim();
     const short = line.length > 72 ? `${line.slice(0, 69)}…` : line;
     return short || "General";
   }
 
+  /**
+   * Turns a topic title into a stable lowercase key so the same topic always shares one
+   * weak-topic bucket.
+   */
   function topicKey(label) {
     return label.toLowerCase().replace(/\s+/g, " ").slice(0, 80);
   }
 
+  /** Splits text into sentences on . ! ? and drops fragments that are too short to be useful. */
   function splitSentences(text) {
     return text
       .replace(/\s+/g, " ")
@@ -269,10 +297,15 @@
     return { easeFactor: easeFactor, interval: interval, repetitions: repetitions, nextReview: nextReview };
   }
 
+  /**
+   * Starting review stats for a card that has never been studied. nextReview 0 means it is
+   * due immediately.
+   */
   function defaultSrsMeta() {
     return { easeFactor: 2.5, interval: 0, repetitions: 0, nextReview: 0 };
   }
 
+  /** True when a card has no review time yet, or that time is now or in the past. */
   function isDue(meta) {
     if (!meta || meta.nextReview === undefined) return true;
     return meta.nextReview <= Date.now();
@@ -294,6 +327,10 @@
     state.weakTopics[topicKey] = w;
   }
 
+  /**
+   * Lists topics that have at least one review, with miss rate, sorted so the weakest topics
+   * come first.
+   */
   function weakTopicList(state) {
     return Object.keys(state.weakTopics)
       .map(function (key) {
@@ -314,6 +351,7 @@
   const STUDY_TUTOR_SYSTEM_PROMPT =
     "You are an advanced study tutor. Teach clearly in simple steps, assume high-school level unless the student asks for another level, and keep responses concise but meaningful. Use examples when helpful. If the student seems confused or asks repeated questions, explicitly say: \"This seems like a weak area. Let’s practice it more.\" Then simplify and give extra practice. For problem-solving, guide step-by-step instead of only giving final answers. After each explanation, include 3-5 flashcards in this exact format on separate lines: Q: ... then A: ... . When appropriate, include a short 3-4 question multiple-choice quiz and list the correct answers at the end. Never mention being an AI model.";
 
+  /** The full POST URL for chat completions, built from the saved API root. */
   function openAiChatCompletionsUrl() {
     var def = "https://api.openai.com/v1/chat/completions";
     try {
@@ -346,6 +384,7 @@
     });
   }
 
+  /** Makes sure each note chunk has text and a topic label before chat uses it. */
   function normalizeChatChunks(chunks) {
     if (!Array.isArray(chunks)) return [];
     return chunks
@@ -361,6 +400,10 @@
       });
   }
 
+  /**
+   * Answers from the notes only. It pulls the closest chunks and turns them into a short
+   * explanation, flashcards, and a tiny quiz. No network call.
+   */
   function localAnswer(question, chunks) {
     const ranked = rankChunksForQuestion(chunks, question, 3);
     if (ranked.length === 0) {
@@ -556,10 +599,18 @@
   var WIKI_REQUEST_TIMEOUT_MS = 8000;
   var WIKI_TOTAL_TIMEOUT_MS = 12000;
 
+  /**
+   * The result used when Wikipedia does not answer in time: no article, and timedOut set so
+   * the UI can say the lookup was slow.
+   */
   function wikiTimedOutResult() {
     return { title: "", extract: "", url: "", timedOut: true };
   }
 
+  /**
+   * GETs a URL and parses JSON. Returns null on a bad status, and aborts if the request
+   * exceeds the timeout.
+   */
   function fetchJsonWithTimeout(url, timeoutMs) {
     var ctrl = new AbortController();
     var tid = setTimeout(function () {
@@ -575,6 +626,10 @@
       });
   }
 
+  /**
+   * Searches English Wikipedia for the query, then loads that article as plain text. Returns
+   * null when nothing matches, or a timed-out result when the request is too slow.
+   */
   function fetchWikipediaContext(query, maxChars) {
     maxChars = maxChars === undefined ? 12000 : maxChars;
     var q = (query || "").trim().slice(0, 200);
@@ -622,6 +677,10 @@
   var RESEARCH_NOTES_SYSTEM =
     "You write structured study notes for high school or early college. Use clear headings (# ## ###), definitions, worked examples where useful, common mistakes, and a short review checklist. When a Wikipedia extract is provided, ground factual claims in it; if unsure, write [verify]. If no extract was found, still write strong notes and mark shaky factual claims [verify]. End with 3–6 flashcard lines: Q: ... then A: ... (one pair per line block). No meta-commentary—start with the first heading.";
 
+  /**
+   * Writes notes from a topic and the student's instructions. Optionally attaches a
+   * Wikipedia extract first. Requires a key that starts with sk-.
+   */
   function generateResearchNotes(opts) {
     opts = opts || {};
     var apiKey = opts.apiKey || "";
@@ -716,6 +775,10 @@
     });
   }
 
+  /**
+   * Reads a JSON object out of a model reply. Strips ``` fences, then tries the text between
+   * the first { and the last }.
+   */
   function parseJsonFromModelContent(raw) {
     var t = (raw || "").trim();
     if (t.indexOf("```") === 0) {
@@ -737,6 +800,10 @@
     }
   }
 
+  /**
+   * Asks the model for quiz JSON. If the API rejects JSON mode, it retries as a normal chat
+   * reply.
+   */
   function openAiQuizChat(userBlock, systemContent, temperature, apiKey) {
     var base = {
       model: "gpt-4o-mini",
@@ -779,6 +846,10 @@
       });
   }
 
+  /**
+   * Asks the model to rewrite one set of notes into clearer sections without inventing
+   * facts. Requires a key that starts with sk-.
+   */
   function refineNotesWithAI(rawNotes, title, apiKey) {
     if (!apiKey || apiKey.indexOf("sk-") !== 0) {
       var local = String(rawNotes || "").trim();
@@ -843,6 +914,10 @@
   var NO_VERBATIM_QUIZ_RULES =
     "CRITICAL: Do not copy sentences or long phrases from STUDENT_NOTES. Paraphrase every question and every answer option in fresh wording. Test understanding of ideas, not recognition of exact wording.";
 
+  /**
+   * Turns the model's questions array into the buttons the quiz screen uses, and shuffles
+   * the choices so the correct one is not always first.
+   */
   function mapParsedQuestionsToItems(parsed, defaultTopicKey) {
     var qs = parsed && parsed.questions;
     if (!Array.isArray(qs) || qs.length === 0) {
@@ -886,6 +961,10 @@
     return { ok: true, items: items };
   }
 
+  /**
+   * Asks the model for 6–8 paraphrased multiple-choice questions based only on the student's
+   * notes.
+   */
   function generateConceptualQuiz(notesContent, docTitle, apiKey) {
     if (!apiKey || apiKey.indexOf("sk-") !== 0) {
       return Promise.resolve({ ok: false, error: "AI paraphrasing is unavailable in local mode." });
@@ -924,6 +1003,10 @@
     });
   }
 
+  /**
+   * Asks the model for harder multiple-choice questions, using the notes plus an optional
+   * Wikipedia extract.
+   */
   function generateAdvancedQuiz(notesContent, docTitle, webExtract, webSourceLabel, apiKey) {
     if (!apiKey || apiKey.indexOf("sk-") !== 0) {
       return Promise.resolve({ ok: false, error: "Advanced AI quiz is unavailable in local mode." });
@@ -971,14 +1054,26 @@
   var VALID_TABS = { library: 1, create: 1, study: 1, quiz: 1, insights: 1, chat: 1 };
   var mainAppInitialized = false;
   let state = defaultState();
+  /**
+   * Finds one element in the page by a CSS selector. Used everywhere the UI reads or updates
+   * a control.
+   */
   const $ = function (sel) {
     return document.querySelector(sel);
   };
 
+  /**
+   * Trims the email and lowercases it so sign-in treats You@Mail.com and you@mail.com as the
+   * same account.
+   */
   function normalizeEmail(email) {
     return String(email || "").trim().toLowerCase();
   }
 
+  /**
+   * Builds a stable account id from the email. It separates each person's notes in
+   * localStorage. It is not a password hash.
+   */
   function userIdFromEmail(email) {
     var e = normalizeEmail(email);
     var hash = 0;
@@ -986,11 +1081,19 @@
     return "u-" + hash.toString(36);
   }
 
+  /**
+   * The localStorage key for this person's notes. A signed-in user gets their own key;
+   * otherwise the shared key is used.
+   */
   function storageKeyForSession(s) {
     if (!s || !s.userId) return STORAGE_KEY_BASE;
     return STORAGE_KEY_BASE + "::" + s.userId;
   }
 
+  /**
+   * Loads the map of emails to password salts and hashes. Returns an empty map if nothing is
+   * saved or the JSON is broken.
+   */
   function loadUserIndex() {
     try {
       var raw = localStorage.getItem(USER_INDEX_KEY);
@@ -1002,10 +1105,12 @@
     }
   }
 
+  /** Writes the email account map back to localStorage. */
   function saveUserIndex(index) {
     localStorage.setItem(USER_INDEX_KEY, JSON.stringify(index || {}));
   }
 
+  /** Makes a new 16-byte random salt, as hex, the first time an email registers. */
   function randomSaltHex() {
     var arr = new Uint8Array(16);
     (window.crypto || window.msCrypto).getRandomValues(arr);
@@ -1014,6 +1119,10 @@
     return out;
   }
 
+  /**
+   * Hashes text with SHA-256 and returns lowercase hex. Sign-in hashes the salt plus the
+   * password so the password itself is not stored.
+   */
   function sha256Hex(text) {
     if (!window.crypto || !window.crypto.subtle) {
       return Promise.reject(new Error("Secure hashing is unavailable in this browser."));
@@ -1026,6 +1135,10 @@
     });
   }
 
+  /**
+   * Reads who is signed in. Returns null if the session is missing, broken, or has no email
+   * and user id.
+   */
   function loadSessionRecord() {
     try {
       var raw = localStorage.getItem(SESSION_KEY);
@@ -1038,6 +1151,7 @@
     }
   }
 
+  /** Stores the signed-in email, account id, and whether Stay signed in was checked. */
   function saveSessionRecord(email, rememberMe) {
     var norm = normalizeEmail(email);
     localStorage.setItem(
@@ -1050,6 +1164,7 @@
     );
   }
 
+  /** Returns the last main tab, or Library if the saved name is missing or not a real tab. */
   function getLastTab() {
     try {
       var t = localStorage.getItem(LAST_TAB_KEY);
@@ -1059,6 +1174,7 @@
     }
   }
 
+  /** Remembers the open tab for the next visit. Unknown names and storage errors are ignored. */
   function persistLastTab(name) {
     if (!VALID_TABS[name]) return;
     try {
@@ -1066,6 +1182,7 @@
     } catch (e) {}
   }
 
+  /** Shows Signed in as {email} in the header, or hides that line when nobody is signed in. */
   function updateSessionHeader() {
     var s = loadSessionRecord();
     var wrap = $("#header-session");
@@ -1080,23 +1197,30 @@
     }
   }
 
+  /** Shows the sign-in card and marks the page so the app behind it is not used yet. */
   function showStartGate() {
     var gate = $("#start-screen");
     if (gate) gate.hidden = false;
     document.body.classList.add("start-gate-active");
   }
 
+  /** Hides the sign-in card so the main app can be used. */
   function hideStartGate() {
     var gate = $("#start-screen");
     if (gate) gate.hidden = true;
     document.body.classList.remove("start-gate-active");
   }
 
+  /** True when Stay signed in is set, so the sign-in card can be skipped. */
   function shouldSkipStartGate() {
     var s = loadSessionRecord();
     return !!(s && s.rememberMe && s.userId && s.email);
   }
 
+  /**
+   * Loads this account's library, wires the screen, and opens the last tab. Runs once per
+   * page load.
+   */
   function initMainApp() {
     if (mainAppInitialized) return;
     mainAppInitialized = true;
@@ -1114,6 +1238,10 @@
     updateSessionHeader();
   }
 
+  /**
+   * Checks the email and password, creates the account the first time, or rejects a wrong
+   * password. Then opens the app.
+   */
   function onStartContinue() {
     var err = $("#start-error");
     var emailInput = $("#start-email");
@@ -1153,6 +1281,7 @@
       });
   }
 
+  /** Clears the sign-in session and reloads the page. Notes stay saved under that account. */
   function signOut() {
     try {
       localStorage.removeItem(SESSION_KEY);
@@ -1160,6 +1289,10 @@
     location.reload();
   }
 
+  /**
+   * Returns the first non-empty OpenAI key from the research field, the settings field, the
+   * quiz field, then the saved key.
+   */
   function readApiKey() {
     function norm(v) {
       return v == null || typeof v !== "string" ? "" : v.trim().replace(/\u00a0/g, "");
@@ -1176,6 +1309,10 @@
     );
   }
 
+  /**
+   * Copies the saved API key into any key box that is still empty, so settings, research,
+   * and quiz show the same key.
+   */
   function syncOpenAiKeyFields() {
     var v = localStorage.getItem(OPENAI_STORAGE) || "";
     var keys = ["openai-key", "research-openai-key", "quiz-openai-key"];
@@ -1185,6 +1322,10 @@
     }
   }
 
+  /**
+   * Saves the key from the box the user just edited, or removes the saved key if that box is
+   * cleared. The other key boxes are updated to match.
+   */
   function persistOpenAiKeyFromField(el) {
     if (!el) return;
     var v = (el.value || "").trim();
@@ -1197,6 +1338,7 @@
     }
   }
 
+  /** Fills the optional API base URL box from localStorage when that box is empty. */
   function syncOpenAiBaseField() {
     var el = $("#openai-api-base");
     if (!el) return;
@@ -1206,6 +1348,10 @@
     } catch (e) {}
   }
 
+  /**
+   * Saves a custom http(s) API base URL, or clears it when the box is blank. Other text is
+   * ignored.
+   */
   function persistOpenAiBaseFromField() {
     var el = $("#openai-api-base");
     if (!el) return;
@@ -1216,10 +1362,12 @@
     } catch (e) {}
   }
 
+  /** Writes the in-memory library to this account's localStorage key. */
   function persist() {
     saveState(state);
   }
 
+  /** Shows one main panel, marks its tab selected, and remembers that tab. */
   function setTab(name) {
     const tabs = document.querySelectorAll(".tab");
     for (let i = 0; i < tabs.length; i++) {
@@ -1238,11 +1386,13 @@
     persistLastTab(name);
   }
 
+  /** Finds one saved note set by id. */
   function getDoc(id) {
     for (let i = 0; i < state.docs.length; i++) if (state.docs[i].id === id) return state.docs[i];
     return null;
   }
 
+  /** Redraws the Library list from the saved sets and highlights the selected one. */
   function renderDocList() {
     const ul = $("#doc-list");
     const empty = $("#doc-empty");
@@ -1277,6 +1427,10 @@
     }
   }
 
+  /**
+   * Shows the selected set's title, summary, and the first few flashcards, or hides that
+   * card when nothing is selected.
+   */
   function renderActiveDoc() {
     const card = $("#active-doc-card");
     const doc = state.activeDocId ? getDoc(state.activeDocId) : null;
@@ -1396,6 +1550,7 @@
   }
 
   var apStarterDataCache = null;
+  /** Loads the bundled starter-topic list once and reuses it after that. */
   function loadApStarterData() {
     if (apStarterDataCache) return Promise.resolve(apStarterDataCache);
     return fetch("js/ap-starter-topics.json", { cache: "force-cache" })
@@ -1409,6 +1564,7 @@
       });
   }
 
+  /** Fills the course and topic menus and, on Add topic, saves that outline into the library. */
   function wireApStarterPickers() {
     var courseSel = $("#ap-starter-course");
     var topicSel = $("#ap-starter-topic");
@@ -1472,6 +1628,10 @@
       });
   }
 
+  /**
+   * Replaces one set's text and rebuilds its summary, chunks, and flashcards. Old review
+   * stats for that set are dropped.
+   */
   function replaceDocNotes(docId, title, content) {
     var doc = getDoc(docId);
     if (!doc) return;
@@ -1496,6 +1656,10 @@
     renderWeakTopics();
   }
 
+  /**
+   * Asks for confirmation, then deletes the selected set and its review stats and selects
+   * another set if one remains.
+   */
   function deleteActiveDoc() {
     const doc = state.activeDocId ? getDoc(state.activeDocId) : null;
     if (!doc) return;
@@ -1534,6 +1698,10 @@
     });
   }
 
+  /**
+   * Shows the current due card with the answer hidden, or the empty message when the queue
+   * is finished.
+   */
   function renderSrsCard() {
     var empty = $("#srs-empty");
     var session = $("#srs-session");
@@ -1561,12 +1729,17 @@
     }
   }
 
+  /** Rebuilds the due-card queue and shows the first card. */
   function startSrsSession() {
     srsQueue = collectDueCards();
     srsIndex = 0;
     renderSrsCard();
   }
 
+  /**
+   * Uncovers the answer and the Again / Hard / Good / Easy buttons. Does nothing if the
+   * answer is already visible.
+   */
   function revealSrs() {
     var a = $("#srs-a");
     if (!a || !a.classList.contains("srs-concealed")) return;
@@ -1582,6 +1755,10 @@
     $("#srs-rates").removeAttribute("hidden");
   }
 
+  /**
+   * Saves the rating, records a miss or a hit for that topic, and moves to the next due
+   * card.
+   */
   function rateSrs(quality) {
     const item = srsQueue[srsIndex];
     if (!item) return;
@@ -1608,6 +1785,7 @@
   let quizIdx = 0;
   let quizLocked = false;
 
+  /** Refills the Research notes Save into menu: a new set, or replace one existing set. */
   function refreshCreateNotesTarget() {
     var sel = $("#create-notes-target");
     if (!sel) return;
@@ -1630,6 +1808,10 @@
     else if (state.activeDocId && ids[state.activeDocId]) sel.value = state.activeDocId;
   }
 
+  /**
+   * Refills the quiz and Ask notes set menus from the library and keeps the selected set
+   * when it still exists.
+   */
   function refreshSelectors() {
     const qSel = $("#quiz-doc-select");
     const cSel = $("#chat-doc-select");
@@ -1656,6 +1838,10 @@
     refreshCreateNotesTarget();
   }
 
+  /**
+   * Shows the empty quiz message, and enables Standard quiz only when the selected set has
+   * cards or enough note text.
+   */
   function renderQuizEmpty() {
     var qSel = $("#quiz-doc-select");
     if (!qSel) return;
@@ -1671,6 +1857,10 @@
     if (std) std.disabled = !(hasFlash || hasContent);
   }
 
+  /**
+   * Starts a quiz on the selected set. Uses paraphrased model questions when a key and
+   * enough text exist; otherwise uses the flashcards.
+   */
   function startQuiz() {
     var docId = $("#quiz-doc-select").value;
     var doc = getDoc(docId);
@@ -1735,6 +1925,10 @@
     runFlashcardFallback();
   }
 
+  /**
+   * Looks up a Wikipedia article for the set, then asks the model for harder questions.
+   * Requires a key that starts with sk-.
+   */
   function startAdvancedQuiz() {
     var docId = $("#quiz-doc-select").value;
     var doc = getDoc(docId);
@@ -1784,6 +1978,10 @@
       });
   }
 
+  /**
+   * Draws the current question, the progress line, and one button per choice. Answering is
+   * unlocked.
+   */
   function renderQuizQuestion() {
     const item = quizItems[quizIdx];
     $("#quiz-progress").textContent = "Question " + (quizIdx + 1) + " of " + quizItems.length;
@@ -1811,6 +2009,10 @@
     }
   }
 
+  /**
+   * Locks the question after one click, highlights the right choice, records a hit or miss,
+   * and shows Next.
+   */
   function onQuizPick(btn, item, opt) {
     if (quizLocked) return;
     quizLocked = true;
@@ -1831,6 +2033,7 @@
     renderWeakTopics();
   }
 
+  /** Shows the next question, or ends the quiz after the last one. */
   function quizNext() {
     quizIdx += 1;
     if (quizIdx >= quizItems.length) {
@@ -1842,6 +2045,10 @@
     renderQuizQuestion();
   }
 
+  /**
+   * Draws the weak-topic list with miss rate bars, or the empty message when there are no
+   * reviews yet.
+   */
   function renderWeakTopics() {
     const list = $("#weak-list");
     const empty = $("#weak-empty");
@@ -1867,6 +2074,10 @@
     }
   }
 
+  /**
+   * Adds one user or bot message to the Ask notes log, plus the note sections it used, then
+   * scrolls to the bottom.
+   */
   function appendChat(role, text, cites) {
     const log = $("#chat-log");
     if (!log) return;
@@ -1883,7 +2094,11 @@
     log.scrollTop = log.scrollHeight;
   }
 
-  /** Attach all click/change handlers once at startup. */
+  /**
+   * Wires the page once: tabs, save and upload, delete and regenerate, AI refine,
+   * flashcard reveal and ratings, quiz controls, API key fields, research notes,
+   * and Ask notes. Each handler calls the function that does that job.
+   */
   function bindUi() {
     const tabEls = document.querySelectorAll(".tab");
     for (let i = 0; i < tabEls.length; i++) {
@@ -2228,6 +2443,10 @@
     wireApStarterPickers();
   }
 
+  /**
+   * Starts the page: wires sign-in and sign-out, skips the gate when the session is
+   * remembered, otherwise shows the gate.
+   */
   function boot() {
     var btnCont = $("#btn-start-continue");
     if (btnCont) btnCont.addEventListener("click", onStartContinue);
