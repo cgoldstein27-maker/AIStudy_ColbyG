@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Matter.js Demo</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: #0e1018;
+            color: #e8eefc;
+            font-family: Arial, sans-serif;
+        }
+
+        #game canvas {
+            display: block;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+<script>
+    // Import Matter.js tools
+    const Engine = Matter.Engine;
+    const Render = Matter.Render;
+    const Runner = Matter.Runner;
+    const Bodies = Matter.Bodies;
+    const Composite = Matter.Composite;
+
+    // Create physics engine
+    const engine = Engine.create();
+
+    // Create the display
+    const render = Render.create({
+        element: document.getElementById("game"),
+        engine: engine,
+        options: {
+            width: 800,
+            height: 600,
+            wireframes: false,
+            background: "#1b1f2a"
+        }
+    });
+
+    // Create a ball
+    const ball = Bodies.circle(400, 100, 30, {
+        restitution: 0.8,
+        render: {
+            fillStyle: "#62f1a5"
+        }
+    });
+
+    // Create a ground platform
+    const ground = Bodies.rectangle(400, 550, 800, 50, {
+        isStatic: true,
+        render: {
+            fillStyle: "#58a6ff"
+        }
+    });
+
+    // Add objects to the simulation
+    Composite.add(engine.world, [ball, ground]);
+
+    // Start physics and rendering.
+    // Matter 0.19 aliases Engine.run to Runner.run and marks it deprecated.
+    const runner = Runner.create();
+    Runner.run(runner, engine);
+    Render.run(render);
+</script>
+
+</body>
+</html>
