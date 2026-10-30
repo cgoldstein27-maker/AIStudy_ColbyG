@@ -27,6 +27,30 @@
             border-radius: 8px;
         }
 
+        .controls {
+            width: min(800px, 96vw);
+            display: grid;
+            gap: 12px;
+        }
+
+        .control {
+            display: grid;
+            grid-template-columns: 7.5rem 1fr 3rem;
+            align-items: center;
+            gap: 10px;
+            color: #d7e2ff;
+        }
+
+        .control span {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: #62f1a5;
+        }
+
         #reset {
             border: 1px solid #62f1a5;
             border-radius: 8px;
@@ -50,6 +74,18 @@
 
 <div class="stage">
     <div id="game"></div>
+    <div class="controls">
+        <label class="control">
+            <span>Gravity</span>
+            <input id="gravity" type="range" min="0" max="3" step="0.1" value="1" aria-describedby="gravity-value">
+            <span id="gravity-value">1.0</span>
+        </label>
+        <label class="control">
+            <span>Drop speed</span>
+            <input id="drop-speed" type="range" min="0" max="20" step="1" value="0" aria-describedby="drop-speed-value">
+            <span id="drop-speed-value">0</span>
+        </label>
+    </div>
     <button id="reset" type="button">Reset ball</button>
 </div>
 
@@ -107,10 +143,28 @@
     Runner.run(runner, engine);
     Render.run(render);
 
+    const gravityInput = document.getElementById("gravity");
+    const gravityValue = document.getElementById("gravity-value");
+    const dropSpeedInput = document.getElementById("drop-speed");
+    const dropSpeedValue = document.getElementById("drop-speed-value");
+
+    function applyGravity() {
+        engine.gravity.y = Number(gravityInput.value);
+        gravityValue.textContent = engine.gravity.y.toFixed(1);
+    }
+
+    function dropSpeed() {
+        return Number(dropSpeedInput.value);
+    }
+
+    function updateDropSpeedLabel() {
+        dropSpeedValue.textContent = String(dropSpeed());
+    }
+
     function resetBall() {
         Sleeping.set(ball, false);
         Body.setPosition(ball, ballStart);
-        Body.setVelocity(ball, { x: 0, y: 0 });
+        Body.setVelocity(ball, { x: 0, y: dropSpeed() });
         Body.setAngularVelocity(ball, 0);
         Body.setAngle(ball, 0);
         ball.force.x = 0;
@@ -118,7 +172,13 @@
         ball.torque = 0;
     }
 
+    gravityInput.addEventListener("input", applyGravity);
+    dropSpeedInput.addEventListener("input", updateDropSpeedLabel);
     document.getElementById("reset").addEventListener("click", resetBall);
+
+    applyGravity();
+    updateDropSpeedLabel();
+    resetBall();
 </script>
 
 </body>
